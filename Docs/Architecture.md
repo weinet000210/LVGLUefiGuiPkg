@@ -184,12 +184,13 @@ PixelBitMask channels wider or narrower than 8 bits are scaled with rounding
 32-bit frame buffer whose channels are whole bytes at the BGR8 or RGB8
 positions is written one word per pixel without the generic encoder.
 
-The frame buffer backend is not faster in QEMU: OVMF's `Blt()` is a memory
-copy inside the firmware, and PerfTest measured a full-screen flush at 20.0 ms
-through the frame buffer against 17.6 ms through `Blt()` (XRGB8888 source;
-133.8 vs 59.9 ms with RGB565). See [Performance.md](Performance.md). Whether
-direct access pays off on a given machine has to be measured there with
-PerfTest.
+In QEMU the two backends are close: OVMF's `Blt()` is a memory copy inside the
+firmware. A full-screen XRGB8888 flush took 20.0 ms through the frame buffer
+against 17.6 ms through `Blt()` in a local run, and 5.37 ms against 5.60 ms on
+the CI runner (at most about 4% in favour of the frame buffer); with an RGB565
+source the frame buffer is about twice as slow. See
+[Performance.md](Performance.md). Whether direct access pays off on a given
+machine has to be measured there with PerfTest.
 
 ## Memory
 

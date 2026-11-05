@@ -20,7 +20,8 @@ How to run PerfTest and turn its log into these tables is in
   for input (input events wake the loop directly).
 - CI repeats the run on every push (GitHub-hosted x86-64 runner, also TCG) and
   writes the same tables into the job summary and the `perf-results`
-  artifact. Expect different absolute numbers there.
+  artifact. Expect different absolute numbers there; the CI figures quoted
+  below come from run 42058330948 (commit 3f4fe30, RELEASE).
 
 ## Findings
 
@@ -33,13 +34,17 @@ How to run PerfTest and turn its log into these tables is in
    the event is queued; p95 is below 6 ms. A key typed on the host USB
    keyboard takes about 42 ms end to end, almost all of it in QEMU's monitor
    and the host-side driver.
-4. **The frame buffer backend is not faster here.** With the default
-   XRGB8888 source it is about 13% slower than the Blt backend for a full
-   screen (20.0 vs 17.6 ms) and equal for small rectangles; with an RGB565
-   source it is 2.2 times slower (133.8 vs 59.9 ms). In OVMF, `Blt()` is a
-   memory copy inside the firmware, so writing the frame buffer directly
-   saves nothing. The Blt backend stays the default; whether direct access
-   pays off on a given machine has to be measured there.
+4. **The two display backends are close; the frame buffer gains at most
+   about 4%.** With the default XRGB8888 source, a full-screen flush took
+   20.0 ms through the frame buffer against 17.6 ms through `Blt()` in the
+   local run (about 13% slower), and 5.37 ms against 5.60 ms on the CI runner
+   (about 4% faster). The whole LVGL update was slightly slower with the frame
+   buffer in both (94.0 vs 93.0 ms locally, 41.3 vs 40.3 ms on CI). With an
+   RGB565 source the frame buffer is about twice as slow in both (133.8 vs
+   59.9 ms locally, 70.9 vs 37.3 ms on CI). In OVMF, `Blt()` is a memory copy
+   inside the firmware, so direct writes have little to save. The Blt backend
+   stays the default; whether direct access pays off on a given machine has
+   to be measured there.
 5. **XRGB8888 conversion fast path.** Converting one word per pixel instead of
    going through the generic encoder cut a full-screen Blt-backend flush from
    71.7 ms to 19.0 ms and the full LVGL update from 150.5 ms to 92.1 ms
