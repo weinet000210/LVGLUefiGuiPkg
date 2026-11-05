@@ -1,0 +1,40 @@
+## @file
+#  UefiGuiDisplayLib - GOP display backend (Blt and optional frame buffer).
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiGuiDisplayLib
+  FILE_GUID                      = 1326419F-9265-446F-9B04-940BDEB2B9BC
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  LIBRARY_CLASS                  = UefiGuiDisplayLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
+
+[Sources]
+  UefiGuiDisplayInternal.h
+  UefiGuiGop.c
+  UefiGuiGopBlt.c
+  UefiGuiFrameBuffer.c
+  UefiGuiBuffer.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  DxeServicesTableLib
+  UefiBootServicesTableLib
+  UefiGuiRuntimeLib
+
+[Protocols]
+  gEfiGraphicsOutputProtocolGuid                ## CONSUMES
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -Wextra -Wno-unused-parameter

@@ -1,0 +1,42 @@
+## @file
+#  GopTest - Phase 1 test for UefiGuiDisplayLib.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = GopTest
+  FILE_GUID                      = 91B5F6DD-9088-41DA-9C92-9307349170D4
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = GopTestMain
+
+[Sources]
+  GopTest.c
+  GopTest.h
+  FakeGop.c
+  TestScreen.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  UefiGuiDisplayLib
+  UefiGuiRuntimeLib
+
+[Protocols]
+  gEfiGraphicsOutputProtocolGuid    ## CONSUMES
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -Wextra -Wno-unused-parameter
