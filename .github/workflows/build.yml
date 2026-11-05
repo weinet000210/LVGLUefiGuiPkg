@@ -1,0 +1,119 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+env:
+  EDK2_TAG: edk2-stable202608
+
+jobs:
+  linux-gcc:
+    name: Linux / GCC (build + QEMU smoke test)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: LVGLUefiGuiPkg
+          submodules: recursive
+
+      - name: Checkout edk2
+        uses: actions/checkout@v4
+        with:
+          repository: tianocore/edk2
+          ref: ${{ env.EDK2_TAG }}
+          path: edk2
+
+      - name: Init required edk2 submodules
+        run: |
+          git -C edk2 submodule update --init --depth 1 \
+            BaseTools/Source/C/BrotliCompress/brotli \
+            MdePkg/Library/MipiSysTLib/mipisyst
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential nasm uuid-dev python3 qemu-system-x86 ovmf
+
+      - name: Build BaseTools
+        run: make -C edk2/BaseTools -j"$(nproc)"
+
+      - name: Build DEBUG and RELEASE
+        run: EDK2_DIR="$GITHUB_WORKSPACE/edk2" LVGLUefiGuiPkg/scripts/build.sh DEBUG RELEASE
+
+      - name: QEMU smoke test (DEBUG)
+        run: |
+          LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UefiGuiHello.efi --smoke UEFIGUI-HELLO
+
+      - name: QEMU smoke test (RELEASE)
+        run: |
+          LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/UefiGuiHello.efi --smoke UEFIGUI-HELLO
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LVGLUefiGuiPkg-X64-GCC
+          path: |
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/*.efi
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/*.efi
+
+  windows-vs2022:
+    name: Windows / VS2022 (build)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: LVGLUefiGuiPkg
+          submodules: recursive
+
+      - name: Checkout edk2
+        uses: actions/checkout@v4
+        with:
+          repository: tianocore/edk2
+          ref: ${{ env.EDK2_TAG }}
+          path: edk2
+
+      - name: Init required edk2 submodules
+        shell: bash
+        run: |
+          git -C edk2 submodule update --init --depth 1 \
+            BaseTools/Source/C/BrotliCompress/brotli \
+            MdePkg/Library/MipiSysTLib/mipisyst
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install NASM
+        run: choco install nasm --no-progress -y
+
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build BaseTools
+        shell: cmd
+        env:
+          PYTHON_COMMAND: python
+        run: |
+          cd edk2
+          call edksetup.bat Rebuild VS2022
+
+      - name: Build DEBUG and RELEASE
+        shell: cmd
+        env:
+          EDK2_DIR: ${{ github.workspace }}\edk2
+          NASM_PREFIX: C:\Program Files\NASM\
+          PYTHON_COMMAND: python
+        run: |
+          call LVGLUefiGuiPkg\scripts\build.bat DEBUG || exit /b 1
+          call LVGLUefiGuiPkg\scripts\build.bat RELEASE || exit /b 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LVGLUefiGuiPkg-X64-VS2022
+          path: |
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_VS2022/X64/*.efi
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_VS2022/X64/*.efi
