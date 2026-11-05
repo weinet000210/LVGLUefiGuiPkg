@@ -47,17 +47,92 @@ during the phase that implements them.
 
 - One execution context. Every LVGL call, every protocol read and every
   queue access happens in the application's main flow at TPL_APPLICATION.
-- No threads and no busy polling. Each `UefiGuiProcessEvents()` iteration
-  calls `lv_timer_handler()`, then sleeps in `WaitForEvent()` on a timer set
-  to the handler's next due time clamped to `[MinWaitMs, MaxWaitMs]`
-  (Phase 2). The keyboard and pointer wait events join that wait in Phases 3
-  and 4. The timer has no notify function.
 - Time base: the CPU time stamp counter, calibrated once against
   `gBS->Stall()` (50 ms). UEFI timer events only fire at the platform tick
   (10 ms on OVMF), so they are not used as a clock. `lv_tick` reads it
   through `lv_tick_set_cb()`.
-- No UefiGui event notify function touches GUI state. If a notify function is
-  ever needed it only sets a flag.
+
+### Event loop (Phase 5)
+
+Each `UefiGuiProcessEvents()` call:
+
+1. runs the callbacks queued with `UefiGuiPostCallback()` (only those queued
+   before this step started, so a callback that re-posts itself runs once
+   per iteration and cannot starve the loop),
+2. reads the keyboard and pointer into the unified queue and hands every
+   queued event to LVGL (`lv_indev_read()`),
+3. runs `lv_timer_handler()`,
+4. unless work is already pending, sleeps in `gBS->WaitForEvent()` on:
+
+   | Index | Event | Signaled by |
+   |---|---|---|
+   | 0 | wait timer (`EVT_TIMER`, no notify) | next LVGL timer, clamped to `[MinWaitMs, MaxWaitMs]` (defaults 1 and 100 ms) |
+   | 1 | exit event | `UefiGuiRequestExit()` |
+   | 2 | wake event | `UefiGuiPostCallback()` |
+   | 3.. | keyboard / pointer wait events | firmware input drivers |
+   | .. | application events | `UefiGuiRegisterEvent()` (up to 8) |
+
+5. runs the handlers of signaled application events. The other signaled
+   events are collected with `CheckEvent()`; stale signals of the timer,
+   exit and wake events are consumed so the next wait is not cut short.
+
+`UefiGuiRun()` repeats this until an exit is requested, consumes the request
+and returns `EFI_SUCCESS`, so it can be called again.
+
+What keeps an idle screen asleep:
+
+- The LVGL keypad and pointer input devices run in `LV_INDEV_MODE_EVENT`:
+  no periodic read timer; step 2 reads only when input arrived. LVGL itself
+  resumes the pointer read timer while a button is held (long press,
+  scrolling) and pauses it on release.
+- LVGL pauses its display refresh timer while nothing is invalidated. This
+  only happens with `LV_USE_PERF_MONITOR` off, so the performance monitor is
+  not compiled in by default (`UEFI_GUI_PERF_MONITOR`, see BuildGuide.md).
+- LVGL pauses its animation timer when no animation runs. A focused text
+  area blinks its cursor with an endless animation, so it keeps the loop at
+  frame rate while focused; that is LVGL behavior.
+- With nothing due, the loop sleeps `MaxWaitMs` (100 ms): 10 wake-ups a
+  second. Every real wake source is an event, so `MaxWaitMs` is only a
+  safety net for input drivers whose wait event does not fire.
+- While `WaitForEvent()` waits, the DXE core idle loop halts the CPU until
+  the next interrupt.
+
+Timer resolution: `SetTimer()` fires on platform timer ticks (10 ms on
+OVMF; RuntimeTest prints the value read from the Timer Architectural
+Protocol). LVGL measures a timer's period from its previous run, so each
+run of an LVGL timer is 0 to one tick late and a 20 ms LVGL timer runs at
+roughly 20 / (20 + tick / 2) of its nominal rate. Animations are time
+based and keep their duration (600 ms animation: 620 ms measured).
+
+### TPL rules
+
+- Everything in `UefiGuiLib.h`, and every LVGL API, is called at
+  TPL_APPLICATION from the application's main flow.
+- Exceptions: `UefiGuiRequestExit()` and `UefiGuiPostCallback()` may be
+  called from UEFI event notification functions at up to TPL_NOTIFY. They
+  set a flag or append to a fixed 32-entry ring (TPL raised to TPL_NOTIFY
+  around the access, no allocation) and call `SignalEvent()`.
+- UefiGui's own events have no notification functions. A notification
+  function in the application must never touch LVGL; it posts a callback.
+- `UefiGuiProcessEvents()`, `UefiGuiRun()` and `UefiGuiShutdown()` refuse
+  to run from inside the loop (LVGL event handlers, the key handler, posted
+  callbacks, application event handlers): the first two return
+  `EFI_ACCESS_DENIED`, shutdown does nothing and records the error.
+
+### Shutdown
+
+`UefiGuiShutdown()` marks the framework stopped (notification functions
+calling `UefiGuiPostCallback()` / `UefiGuiRequestExit()` get
+`EFI_NOT_STARTED` from then on), then releases in order: LVGL input devices,
+group and cursor; the input queue; all LVGL objects, the display and its
+draw buffers (`lv_deinit()`); the wait timer, exit and wake events (queued
+callbacks are discarded and counted); the GOP Blt buffer; and restores the
+GOP mode that was active before `UefiGuiInitialize()` if another one was
+selected. Registered application events are forgotten, not closed: they
+belong to the application. `UefiGuiGetLoopStats()` still returns the final
+statistics of the session after shutdown; RuntimeTest checks that
+`OpenEvents` is 0 and that UefiGui memory is back to its starting value
+after every session.
 
 ## Display path
 
@@ -153,7 +228,7 @@ Both scripts fail if an LVGL update renames a setting they rely on.
 | Fonts | Montserrat 14 (default), 20, 28; unscii 8 and 16 (monospace); ASCII |
 | Log | `LV_LOG_LEVEL_WARN` -> `DEBUG()` |
 | Assert | null and malloc checks; failure prints the location and halts (`lv_uefi_gui_assert.h`) |
-| Performance monitor | compiled in, hidden unless `Debug.ShowPerformanceMonitor` |
+| Performance monitor | off unless built with `-DUEFI_GUI_PERF_MONITOR=1` (it keeps the refresh timer running); then hidden unless `Debug.ShowPerformanceMonitor` |
 
 x86_64-linux-gnu-gcc predefines `__linux__`; LvglLib undefines it so LVGL
 does not select Linux code paths. LVGL sources are compiled unmodified with

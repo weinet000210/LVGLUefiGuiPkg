@@ -18,6 +18,10 @@
 # --load DRIVER.efi (repeatable): copy the driver to the ESP and load it from
 #   the shell (then "connect -r") before the application starts.
 # --pointer mouse|tablet|none: USB pointer device (default: tablet).
+# --cpu-ratio N (with --drive): the application measures host CPU time with
+#   "cpu begin" / "cpu end idle" and "cpu end busy"; fail unless the QEMU
+#   process used at least N times more CPU in the busy period than in the
+#   idle one.
 #
 # Env: OVMF_CODE, OVMF_VARS (default: /usr/share/OVMF/OVMF_*_4M.fd),
 #      QEMU (default: qemu-system-x86_64), QEMU_TIMEOUT (smoke, default 120).
@@ -31,6 +35,7 @@ SHOT_AFTER=""
 DRIVE=""
 LOADS=()
 POINTER="tablet"
+CPU_RATIO=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --smoke) SMOKE="${2:?--smoke needs a marker}"; shift 2 ;;
@@ -39,6 +44,7 @@ while [ $# -gt 0 ]; do
     --drive) DRIVE=1; shift ;;
     --load) LOADS+=("${2:?--load needs a driver}"); shift 2 ;;
     --pointer) POINTER="${2:?--pointer needs mouse, tablet or none}"; shift 2 ;;
+    --cpu-ratio) CPU_RATIO="${2:?--cpu-ratio needs a number}"; shift 2 ;;
     *) break ;;
   esac
 done
@@ -104,6 +110,7 @@ if [ -n "$DRIVE" ]; then
   if [ -n "$SHOT" ]; then
     export DRIVER_SHOT="$(cd "$(dirname "$SHOT")" && pwd)/$(basename "$SHOT")"
   fi
+  export DRIVER_CPU_LOG="$TMP/host-cpu.txt"
   python3 "$(dirname "$0")/qemu-driver.py" "$TMP/serial.log" "$TMP/monitor.sock" "$QEMU_PID" &
   DRIVER_PID=$!
 fi
@@ -142,9 +149,18 @@ fi
 # Strip terminal escape sequences and carriage returns from the console log.
 sed 's/\x1b\[[0-9;]*[A-Za-z]//g' "$TMP/serial.log" | tr -d '\r' > "$TMP/console.txt"
 sed -n "/^FS0:\\\\> $NAME/,\$p" "$TMP/console.txt"
-if grep -q "$SMOKE: PASS" "$TMP/console.txt"; then
-  echo "smoke test passed"
-else
+if ! grep -q "$SMOKE: PASS" "$TMP/console.txt"; then
   echo "smoke test FAILED (no '$SMOKE: PASS' on the console)" >&2
   exit 1
 fi
+if [ -n "$CPU_RATIO" ]; then
+  IDLE="$(awk '$1=="idle"{print $2}' "$TMP/host-cpu.txt" 2>/dev/null | tail -n1)"
+  BUSY="$(awk '$1=="busy"{print $2}' "$TMP/host-cpu.txt" 2>/dev/null | tail -n1)"
+  echo "host CPU of the QEMU process: idle GUI ${IDLE:-?}%, busy-polling reference ${BUSY:-?}%"
+  if [ -z "$IDLE" ] || [ -z "$BUSY" ] || \
+     ! awk -v i="$IDLE" -v b="$BUSY" -v r="$CPU_RATIO" 'BEGIN { exit !(b > 0 && b >= r * i) }'; then
+    echo "host CPU check FAILED (busy must be at least ${CPU_RATIO}x idle)" >&2
+    exit 1
+  fi
+fi
+echo "smoke test passed"

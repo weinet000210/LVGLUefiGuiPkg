@@ -77,6 +77,7 @@
   LVGLUefiGuiPkg/Test/GopTest/GopTest.inf
   LVGLUefiGuiPkg/Test/LvglPortTest/LvglPortTest.inf
   LVGLUefiGuiPkg/Test/InputTest/InputTest.inf
+  LVGLUefiGuiPkg/Test/RuntimeTest/RuntimeTest.inf
 
   #
   # USB mouse drivers that OVMF does not include. Built only so the QEMU

@@ -227,9 +227,9 @@ TestConfig (
 
   UefiGuiConfigInitDefaults (&Config);
   Check (
-    L"defaults: revision, 64 lines, wait 1..50 ms",
+    L"defaults: revision, 64 lines, wait 1..100 ms",
     (BOOLEAN)((Config.Revision == UEFI_GUI_CONFIG_REVISION) && (Config.Display.DrawBufferLines == 64) &&
-              (Config.Timer.MinWaitMs == 1) && (Config.Timer.MaxWaitMs == 50))
+              (Config.Timer.MinWaitMs == 1) && (Config.Timer.MaxWaitMs == 100))
     );
 
   Config.Revision = 0;

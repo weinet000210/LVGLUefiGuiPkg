@@ -5,7 +5,8 @@
   LVGL APIs used (checked against LVGL v9.6.0, include/lvgl/):
     lv_indev_create, lv_indev_set_type, lv_indev_set_read_cb,
     lv_indev_set_display, lv_indev_set_group, lv_indev_set_cursor,
-    lv_indev_read, lv_indev_delete, lv_indev_search_obj, lv_group_create,
+    lv_indev_set_mode, lv_indev_read, lv_indev_delete, lv_indev_search_obj,
+    lv_group_create,
     lv_group_set_default, lv_group_get_focused, lv_group_delete,
     lv_event_register_id, lv_obj_scroll_by_bounded, lv_obj_is_scrollable,
     lv_obj_set_clickable.
@@ -407,6 +408,11 @@ UefiGuiLvglInputInitialize (
     lv_indev_set_read_cb (gUefiGui.Keypad, UefiGuiKeypadRead);
     lv_indev_set_display (gUefiGui.Keypad, gUefiGui.Display);
     lv_indev_set_group (gUefiGui.Keypad, gUefiGui.Group);
+    //
+    // Event mode: no periodic read timer; UefiGuiLvglInputProcess() reads
+    // when the firmware reported input.
+    //
+    lv_indev_set_mode (gUefiGui.Keypad, LV_INDEV_MODE_EVENT);
   } else {
     UefiGuiRecordError ("no keyboard", EFI_NOT_FOUND);
   }
@@ -423,6 +429,11 @@ UefiGuiLvglInputInitialize (
     lv_indev_set_type (gUefiGui.Pointer, LV_INDEV_TYPE_POINTER);
     lv_indev_set_read_cb (gUefiGui.Pointer, UefiGuiPointerRead);
     lv_indev_set_display (gUefiGui.Pointer, gUefiGui.Display);
+    //
+    // Event mode: LVGL itself resumes the read timer while the button is
+    // held (long press, scrolling) and pauses it again on release.
+    //
+    lv_indev_set_mode (gUefiGui.Pointer, LV_INDEV_MODE_EVENT);
     if (gUefiGui.Config.Input.ShowCursor) {
       UefiGuiBuildCursor ();
       gUefiGui.Cursor = lv_image_create (lv_layer_sys ());
@@ -440,8 +451,12 @@ UefiGuiLvglInputInitialize (
 }
 
 /**
-  Poll the devices; let LVGL read new input right away instead of waiting
-  for its next indev period.
+  Read the devices into the queue, then let LVGL process every queued
+  event. The input devices are in event mode, where LVGL ignores
+  continue_reading, so each lv_indev_read() handles one state change and is
+  repeated until the queue holds no more events of that kind. Every read
+  callback dequeues at least one event while any is queued, so the loops
+  end.
 **/
 VOID
 UefiGuiLvglInputProcess (
@@ -456,12 +471,16 @@ UefiGuiLvglInputProcess (
     UefiGuiRecordError ("input device", EFI_DEVICE_ERROR);
   }
 
-  if ((gUefiGui.Keypad != NULL) && (UefiGuiInputPendingKind (UEFI_GUI_INPUT_KIND_KEY) != 0)) {
-    lv_indev_read (gUefiGui.Keypad);
+  if (gUefiGui.Keypad != NULL) {
+    while (UefiGuiInputPendingKind (UEFI_GUI_INPUT_KIND_KEY) != 0) {
+      lv_indev_read (gUefiGui.Keypad);
+    }
   }
 
-  if ((gUefiGui.Pointer != NULL) && (UefiGuiInputPendingKind (UEFI_GUI_INPUT_KIND_POINTER) != 0)) {
-    lv_indev_read (gUefiGui.Pointer);
+  if (gUefiGui.Pointer != NULL) {
+    while (UefiGuiInputPendingKind (UEFI_GUI_INPUT_KIND_POINTER) != 0) {
+      lv_indev_read (gUefiGui.Pointer);
+    }
   }
 }
 

@@ -15,7 +15,15 @@
  *     (LVGLUefiGuiPkg provides its own GOP and input backends)
  *   - fonts: Montserrat 14/20/28 for the UI, unscii 8/16 monospace, ASCII
  *   - logging and asserts routed to EDK2 DEBUG() / lv_uefi_gui_assert.h
+ *   - LV_USE_SYSMON / LV_USE_PERF_MONITOR follow UEFI_GUI_PERF_MONITOR
+ *     (default 0). With the performance monitor compiled in, LVGL never
+ *     pauses its display refresh timer, so the event loop wakes every
+ *     LV_DEF_REFR_PERIOD even on an idle screen. Enable it for measurements
+ *     only, by building with -DUEFI_GUI_PERF_MONITOR=1 (see BuildGuide.md).
  */
+#ifndef UEFI_GUI_PERF_MONITOR
+#define UEFI_GUI_PERF_MONITOR 0
+#endif
 /**
  * @file lv_conf.h
  * Configuration file for v9.6.0
@@ -2102,7 +2110,7 @@
 /** Periodically collect CPU, FPS and memory statistics and optionally show them in an
  *  on-screen overlay.
  */
-#define LV_USE_SYSMON 1
+#define LV_USE_SYSMON UEFI_GUI_PERF_MONITOR
 
 #if LV_USE_SYSMON
 /** The port provides `lv_os_get_proc_idle_percent` a per-process idle percentage
@@ -2111,7 +2119,7 @@
 #define LV_SYSMON_PROC_IDLE_AVAILABLE 0
 
 /** Show the CPU usage and FPS count in a label on the screen. */
-#define LV_USE_PERF_MONITOR 1
+#define LV_USE_PERF_MONITOR UEFI_GUI_PERF_MONITOR
 
 #if LV_USE_PERF_MONITOR
 /** Performance monitor position

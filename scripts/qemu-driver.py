@@ -8,7 +8,10 @@
 #  command, through the QEMU human monitor, with a short pause between
 #  commands (like keys typed by a person). Only input commands are allowed:
 #  sendkey, mouse_move, mouse_button, plus "screenshot", which saves the
-#  screen to $DRIVER_SHOT (PNG) when that is set.
+#  screen to $DRIVER_SHOT (PNG) when that is set, and "cpu begin" /
+#  "cpu end <label>", which measure the CPU time the QEMU process used in
+#  between (user + system, as a percentage of one host CPU) and append
+#  "<label> <percent>" to $DRIVER_CPU_LOG when that is set.
 #
 #  Usage: qemu-driver.py <serial.log> <monitor.sock> <qemu-pid>
 #  Env:   DRIVER_CMD_DELAY (seconds between commands, default 0.04)
@@ -45,6 +48,28 @@ def monitor(sock_path, command):
         s.close()
 
 
+def qemu_pid(pid):
+    """run-qemu.sh starts QEMU under timeout(1): measure its child."""
+    try:
+        with open("/proc/%d/comm" % pid) as fh:
+            if fh.read().strip() != "timeout":
+                return pid
+        with open("/proc/%d/task/%d/children" % (pid, pid)) as fh:
+            children = fh.read().split()
+        return int(children[0]) if children else pid
+    except OSError:
+        return pid
+
+
+def cpu_seconds(pid):
+    pid = qemu_pid(pid)
+    with open("/proc/%d/stat" % pid) as fh:
+        fields = fh.read().rsplit(")", 1)[1].split()
+    # utime and stime are fields 14 and 15 of /proc/<pid>/stat (1-based);
+    # after the "(comm)" field the list starts at field 3.
+    return (int(fields[11]) + int(fields[12])) / os.sysconf("SC_CLK_TCK")
+
+
 def alive(pid):
     try:
         os.kill(pid, 0)
@@ -57,6 +82,7 @@ def main():
     log, sock, pid = sys.argv[1], sys.argv[2], int(sys.argv[3])
     delay = float(os.environ.get("DRIVER_CMD_DELAY", "0.04"))
     done = set()
+    cpu_mark = None
     while alive(pid):
         try:
             with open(log, "rb") as fh:
@@ -77,6 +103,21 @@ def main():
                     if shot:
                         monitor(sock, "screendump %s -f png" % shot)
                         time.sleep(1.0)
+                    continue
+                if cmd.split()[0] == "cpu":
+                    words = cmd.split()
+                    now = (time.monotonic(), cpu_seconds(pid))
+                    if len(words) >= 2 and words[1] == "begin":
+                        cpu_mark = now
+                    elif len(words) >= 3 and words[1] == "end" and cpu_mark:
+                        wall = now[0] - cpu_mark[0]
+                        pct = 100.0 * (now[1] - cpu_mark[1]) / wall if wall > 0 else 0.0
+                        line = "%s %.1f" % (words[2], pct)
+                        print("qemu-driver: host-cpu %s%% over %.2f s" % (line, wall), file=sys.stderr)
+                        if os.environ.get("DRIVER_CPU_LOG"):
+                            with open(os.environ["DRIVER_CPU_LOG"], "a") as fh:
+                                fh.write(line + "\n")
+                        cpu_mark = None
                     continue
                 if cmd.split()[0] not in ALLOWED:
                     print("qemu-driver: refused '%s'" % cmd, file=sys.stderr)
