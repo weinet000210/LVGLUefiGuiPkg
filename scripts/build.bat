@@ -4,7 +4,7 @@ rem
 rem   set EDK2_DIR=C:\src\edk2
 rem   scripts\build.bat [DEBUG|RELEASE|NOOPT]
 rem
-rem Run from a "x64 Native Tools Command Prompt for VS 2022" or any prompt;
+rem Run from any prompt after BaseTools are built (see Docs/BuildGuide.md);
 rem edksetup.bat locates VS2022 itself. NASM must be installed and NASM_PREFIX
 rem set (for example C:\Program Files\NASM\). The repository directory must
 rem be named LVGLUefiGuiPkg.

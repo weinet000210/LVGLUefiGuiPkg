@@ -65,8 +65,9 @@ build -p LVGLUefiGuiPkg/LVGLUefiGuiPkg.dsc -a X64 -t GCC -b DEBUG
 1. Install Visual Studio 2022 (Desktop development with C++), Python 3.12,
    Git and NASM 2.15.05+ (`choco install nasm`).
 
-2. Get edk2 and build BaseTools from a "x64 Native Tools Command Prompt for
-   VS 2022":
+2. Get edk2 and build BaseTools from a "x86 Native Tools Command Prompt for
+   VS 2022" (BaseTools default to 32-bit host binaries in `BaseTools\Bin\Win32`;
+   building them with the x64 compiler fails with C4311/C4312 errors):
 
    ```bat
    git clone -b edk2-stable202608 https://github.com/tianocore/edk2.git

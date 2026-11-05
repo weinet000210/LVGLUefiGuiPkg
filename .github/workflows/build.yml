@@ -89,9 +89,12 @@ jobs:
       - name: Install NASM
         run: choco install nasm --no-progress -y
 
+      # edk2 BaseTools default to HOST_ARCH=IA32 (Bin\Win32), so they must be
+      # compiled with the x86 compiler. The firmware build itself picks the
+      # VS2022 X64 compiler from tools_def.txt.
       - uses: ilammy/msvc-dev-cmd@v1
         with:
-          arch: x64
+          arch: x86
 
       - name: Build BaseTools
         shell: cmd
@@ -100,6 +103,10 @@ jobs:
         run: |
           cd edk2
           call edksetup.bat Rebuild VS2022
+          if not exist BaseTools\Bin\Win32\GenFw.exe (
+            echo BaseTools build failed
+            exit /b 1
+          )
 
       - name: Build DEBUG and RELEASE
         shell: cmd
