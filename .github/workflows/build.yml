@@ -65,6 +65,19 @@ jobs:
             --screenshot screenshots/goptest-1024x768.png --after "GOPTEST: SCREEN READY"
           test -s screenshots/goptest-1024x768.png
 
+      - name: LvglPortTest (DEBUG)
+        run: |
+          LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/LvglPortTest.efi --smoke UEFIGUI-LVGLPORT
+
+      - name: LvglPortTest (RELEASE) with screenshot
+        run: |
+          mkdir -p screenshots
+          SHOT_DELAY=3 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/LvglPortTest.efi --smoke UEFIGUI-LVGLPORT \
+            --screenshot screenshots/lvglporttest-1024x768.png --after "LVGLPORTTEST: SCREEN READY"
+          test -s screenshots/lvglporttest-1024x768.png
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

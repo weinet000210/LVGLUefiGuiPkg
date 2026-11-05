@@ -18,7 +18,7 @@ both supported toolchains and its tests pass in CI.
 |---|---|---|
 | 0 | Package skeleton: DEC/DSC/INF, library class headers, memory backend, UefiGuiHello | Done (GCC build + QEMU smoke test, VS2022 build) |
 | 1 | GOP display backend (Blt path, all pixel formats, PixelBltOnly) + GopTest | Done (GCC + QEMU GopTest with screenshot, VS2022 build) |
-| 2 | LVGL v9.6.0 integration (partial rendering, flush lifecycle) | Not started |
+| 2 | LVGL v9.6.0 integration (partial rendering, flush lifecycle, time base, timer loop) + LvglPortTest | Done (GCC + QEMU LvglPortTest with screenshot, VS2022 build) |
 | 3 | Keyboard backend (Simple Text Input Ex) and LVGL keypad indev | Not started |
 | 4 | Pointer backend (Simple / Absolute Pointer) and LVGL pointer indev | Not started |
 | 5 | Event loop and timers without busy polling; UefiGuiDemo | Not started |
@@ -27,6 +27,8 @@ both supported toolchains and its tests pass in CI.
 Validation so far is in QEMU with OVMF only (GOP format BGR8). PixelBltOnly,
 RGB8 and PixelBitMask are covered with synthetic GOP instances in GopTest.
 Nothing has been validated on real hardware yet.
+
+![LvglPortTest screen in QEMU: LVGL 9.6.0 through GOP](Docs/Images/lvglporttest-1024x768.png)
 
 ![GopTest screen in QEMU](Docs/Images/goptest-1024x768.png)
 
@@ -37,7 +39,7 @@ Nothing has been validated on real hardware yet.
 | EDK2 | edk2-stable202608 |
 | Architecture | X64 |
 | Toolchains | `GCC` (Linux, GCC 5+), `VS2022` (Windows) |
-| LVGL | v9.6.0 (git submodule, from Phase 2) |
+| LVGL | v9.6.0 (git submodule `Library/LvglLib/lvgl`; clone with `--recursive`) |
 | Runs on | UEFI Shell, standalone `.efi`, no OS dependency |
 
 ## Layout
@@ -50,16 +52,20 @@ LVGLUefiGuiPkg/
 │   │   ├── UefiGuiLib.h          Framework API used by applications
 │   │   ├── UefiGuiDisplayLib.h   GOP display backend
 │   │   ├── UefiGuiInputLib.h     Keyboard/pointer backends, input queue
-│   │   └── UefiGuiRuntimeLib.h   Memory (and, from Phase 5, timers)
+│   │   ├── UefiGuiRuntimeLib.h   Memory and time base
+│   │   └── LvglLib.h             Includes <lvgl.h>
 │   └── UefiGui/                  Shared types, configuration, error helpers
 ├── Library/
-│   ├── UefiGuiRuntimeLib/        Memory backend (Phase 0)
-│   └── UefiGuiDisplayLib/        GOP display backend: Blt + optional frame buffer (Phase 1)
+│   ├── UefiGuiRuntimeLib/        Memory backend (Phase 0), TSC time base (Phase 2)
+│   ├── UefiGuiDisplayLib/        GOP display backend: Blt + optional frame buffer (Phase 1)
+│   ├── LvglLib/                  LVGL v9.6.0 submodule, lv_conf.h, freestanding shims (Phase 2)
+│   └── UefiGuiLib/               Public API, LVGL display port, event loop (Phase 2)
 ├── Application/
 │   └── UefiGuiHello/             Phase 0 smoke test
 ├── Test/
-│   └── GopTest/                  Phase 1 display test (unit checks + test screen)
-├── scripts/                      build.sh, build.bat, run-qemu.sh
+│   ├── GopTest/                  Phase 1 display test (unit checks + test screen)
+│   └── LvglPortTest/             Phase 2 LVGL port test (Button + Label, partial rendering)
+├── scripts/                      build.sh, build.bat, run-qemu.sh, gen-lv-conf.py, gen-lvgl-inf.py
 └── Docs/                         Architecture.md, BuildGuide.md
 ```
 

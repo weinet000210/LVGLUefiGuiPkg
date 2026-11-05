@@ -34,10 +34,10 @@ Rules:
 
 | Class | Header | Instance | Phase |
 |---|---|---|---|
-| UefiGuiRuntimeLib | `Library/UefiGuiRuntimeLib.h` | `Library/UefiGuiRuntimeLib` | memory: 0, timers: 5 |
+| UefiGuiRuntimeLib | `Library/UefiGuiRuntimeLib.h` | `Library/UefiGuiRuntimeLib` | memory: 0, time base: 2 |
 | UefiGuiDisplayLib | `Library/UefiGuiDisplayLib.h` | `Library/UefiGuiDisplayLib` | 1 |
-| LvglLib | (LVGL headers) | - | 2 |
-| UefiGuiLib | `Library/UefiGuiLib.h` | - | 2, 5 |
+| LvglLib | `Library/LvglLib.h` (`<lvgl.h>`) | `Library/LvglLib` | 2 |
+| UefiGuiLib | `Library/UefiGuiLib.h` | `Library/UefiGuiLib` | 2, input in 3/4, loop refinements in 5 |
 | UefiGuiInputLib | `Library/UefiGuiInputLib.h` | - | 3, 4 |
 
 Headers for classes without an instance are interface drafts and may change
@@ -47,10 +47,15 @@ during the phase that implements them.
 
 - One execution context. Every LVGL call, every protocol read and every
   queue access happens in the application's main flow at TPL_APPLICATION.
-- No threads and no busy polling. The event loop (Phase 5) sleeps in
-  `WaitForEvent()` on a timer event plus the keyboard and pointer wait
-  events, with a timeout taken from `lv_timer_handler()`'s next due time,
-  clamped to `[MinWaitMs, MaxWaitMs]`.
+- No threads and no busy polling. Each `UefiGuiProcessEvents()` iteration
+  calls `lv_timer_handler()`, then sleeps in `WaitForEvent()` on a timer set
+  to the handler's next due time clamped to `[MinWaitMs, MaxWaitMs]`
+  (Phase 2). The keyboard and pointer wait events join that wait in Phases 3
+  and 4. The timer has no notify function.
+- Time base: the CPU time stamp counter, calibrated once against
+  `gBS->Stall()` (50 ms). UEFI timer events only fire at the platform tick
+  (10 ms on OVMF), so they are not used as a clock. `lv_tick` reads it
+  through `lv_tick_set_cb()`.
 - No UefiGui event notify function touches GUI state. If a notify function is
   ever needed it only sets a flag.
 
@@ -108,6 +113,52 @@ signature and the requested size, which provides:
 LVGL is configured with `LV_USE_STDLIB_MALLOC = LV_STDLIB_CUSTOM` (hooks into
 the functions above) and `LV_STDLIB_BUILTIN` for string and sprintf, so it does
 not depend on a C library.
+
+## LVGL port
+
+`UefiGuiInitialize()` calls `lv_init()`, installs the tick, log and memory
+hooks, and creates one LVGL display the size of the GOP mode:
+
+- color format `LV_COLOR_FORMAT_XRGB8888` (byte order B, G, R, X), which
+  UefiGuiDisplayLib converts for every GOP pixel format;
+- `LV_DISPLAY_RENDER_MODE_PARTIAL` with one (or, with `DoubleBuffer`, two)
+  draw buffers of `DrawBufferLines` full lines (default 64: 256 KiB at 1024
+  wide);
+- the flush callback validates the area, calls `UefiGuiDisplayFlushRect()`
+  with LVGL's stride for that width (`lv_draw_buf_width_to_stride()`), counts
+  frames, flushes, pixels, errors and time, and always ends with
+  `lv_display_flush_ready()`, also when the backend failed, so LVGL never
+  waits for a flush that cannot finish. Errors go to
+  `UefiGuiGetLastError()` and `UEFI_GUI_RENDER_STATS.FlushErrors`.
+
+GOP `Blt()` is synchronous, so `lv_display_flush_ready()` is called from the
+callback itself.
+
+### LVGL configuration
+
+`Library/LvglLib/lv_conf.h` is generated from LVGL's template by
+`scripts/gen-lv-conf.py`, and `LvglLib.inf` by `scripts/gen-lvgl-inf.py`.
+Both scripts fail if an LVGL update renames a setting they rely on.
+
+| Area | Setting |
+|---|---|
+| OS, threads | `LV_OS_NONE`; all LVGL calls in the GUI context |
+| Rendering | software (`LV_USE_DRAW_SW`), no GPU units, refresh period 16 ms |
+| Memory | `LV_STDLIB_CUSTOM` -> `UefiGuiAllocate()`/`UefiGuiReallocate()`/`UefiGuiFree()` |
+| string, sprintf | LVGL built-in (no C library) |
+| `<inttypes.h>`, `<limits.h>` | `lv_uefi_gui_inttypes.h`, `lv_uefi_gui_limits.h` (freestanding toolchains have neither) |
+| `<stdint.h>`, `<stddef.h>`, `<stdbool.h>`, `<stdarg.h>` | compiler-provided; GCC modules that include LVGL headers build with `-ffreestanding` |
+| Compiler-emitted `memcpy`/`memset`/`memmove`/`memcmp` | `MdePkg/Library/CompilerIntrinsicsLib` |
+| File systems, image decoders, LVGL's own UEFI driver | off |
+| Fonts | Montserrat 14 (default), 20, 28; unscii 8 and 16 (monospace); ASCII |
+| Log | `LV_LOG_LEVEL_WARN` -> `DEBUG()` |
+| Assert | null and malloc checks; failure prints the location and halts (`lv_uefi_gui_assert.h`) |
+| Performance monitor | compiled in, hidden unless `Debug.ShowPerformanceMonitor` |
+
+x86_64-linux-gnu-gcc predefines `__linux__`; LvglLib undefines it so LVGL
+does not select Linux code paths. LVGL sources are compiled unmodified with
+warnings non-fatal, but undeclared functions are errors and any missing C
+library symbol fails the link.
 
 ## Decisions
 

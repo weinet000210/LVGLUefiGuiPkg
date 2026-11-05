@@ -1,5 +1,6 @@
 /** @file
-  UefiGuiRuntimeLib - memory allocation for UefiGui and LVGL.
+  UefiGuiRuntimeLib - memory allocation and the time base for UefiGui and
+  LVGL.
 
   All memory used by UefiGui and by LVGL (through the LV_STDLIB_CUSTOM hooks
   added in Phase 2) comes from these functions. They wrap the UEFI pool
@@ -16,7 +17,11 @@
   Must be called at TPL_APPLICATION or TPL_CALLBACK (pool services allow up
   to TPL_NOTIFY, but UefiGui keeps all GUI work at TPL_APPLICATION).
 
-  Timer and event services are added to this library class in Phase 5.
+  Time base (Phase 2): a monotonic millisecond / microsecond clock built on
+  the CPU time stamp counter, calibrated once against gBS->Stall(). It feeds
+  lv_tick and the event loop. UEFI has no wall-clock-free monotonic timer
+  service, and timer events only fire at the platform tick (often 10 ms),
+  so they are not used as a clock.
 
   Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -126,6 +131,48 @@ EFI_STATUS
 EFIAPI
 UefiGuiGetMemoryStats (
   OUT UEFI_GUI_MEMORY_STATS  *Stats
+  );
+
+/**
+  Calibrate the time base. Idempotent; takes about 50 ms the first time.
+
+  @retval EFI_SUCCESS      Time base ready.
+  @retval EFI_UNSUPPORTED  The CPU has no time stamp counter, or calibration
+                           measured no progress.
+**/
+EFI_STATUS
+EFIAPI
+UefiGuiTimeInitialize (
+  VOID
+  );
+
+/**
+  Milliseconds since UefiGuiTimeInitialize() first succeeded, 0 before.
+  Monotonic.
+**/
+UINT64
+EFIAPI
+UefiGuiGetTimeMs (
+  VOID
+  );
+
+/**
+  Microseconds since UefiGuiTimeInitialize() first succeeded, 0 before.
+  Monotonic.
+**/
+UINT64
+EFIAPI
+UefiGuiGetTimeUs (
+  VOID
+  );
+
+/**
+  Time stamp counter ticks per second measured by the calibration, 0 before.
+**/
+UINT64
+EFIAPI
+UefiGuiGetTimeFrequency (
+  VOID
   );
 
 #endif // UEFI_GUI_RUNTIME_LIB_H_
