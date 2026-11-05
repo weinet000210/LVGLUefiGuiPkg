@@ -12,10 +12,26 @@
   widget APIs (lv_label_create(), lv_button_create(), ...) on the active
   screen.
 
-  Status by phase: display, LVGL, time base and the timer-driven loop are
-  implemented (Phase 2). Keyboard and pointer input arrive in Phases 3 and 4;
-  until then UefiGuiGetInputDevices() reports no devices and the loop waits
-  on its timer only.
+  Input (Phases 3 and 4): UefiGuiInitialize() creates an LVGL keypad input
+  device for the keyboard and a pointer input device when a mouse or an
+  absolute pointer exists. A default lv_group is created and set with
+  lv_group_set_default(), so widgets that accept focus are added to it as
+  they are created and Tab / Shift+Tab move the focus.
+
+  Key mapping (UefiGuiKeyToLvgl): arrows -> LV_KEY_UP/DOWN/LEFT/RIGHT,
+  Enter -> LV_KEY_ENTER, Esc -> LV_KEY_ESC, Tab -> LV_KEY_NEXT,
+  Shift+Tab -> LV_KEY_PREV, Backspace -> LV_KEY_BACKSPACE,
+  Delete -> LV_KEY_DEL, Home -> LV_KEY_HOME, End -> LV_KEY_END, printable
+  characters -> their UTF-8 code. Page Up / Page Down have no LVGL key: they
+  scroll the focused object (or its nearest scrollable parent) by one page.
+  Ctrl / Alt combinations (Ctrl+A, C, V, S, O, F, ...) are never typed into
+  widgets: they go to the handler set with UefiGuiSetKeyHandler(), which
+  also sees every other key first and may consume it.
+
+  Right button: a click (press and release) sends the event code returned by
+  UefiGuiGetRightClickEventCode() to the object under the cursor, with the
+  lv_point_t position as the event parameter. Wheel: scrolls the scrollable
+  object under the cursor.
 
   Call order:
     UefiGuiConfigInitDefaults (&Config);   // application, optional overrides
@@ -101,7 +117,6 @@ UefiGuiGetDisplayInfo (
 
 /**
   Return UEFI_GUI_INPUT_DEVICE_* bits for the input devices in use.
-  Always 0 until the input backends (Phases 3 and 4) are connected.
 **/
 UINT32
 EFIAPI
@@ -162,6 +177,66 @@ VOID
 EFIAPI
 UefiGuiDebugInjectFlushFailures (
   IN UINT32  Count
+  );
+
+/**
+  Key handler: called in the GUI context for every key press before LVGL
+  sees it. Return TRUE to consume the key (LVGL then never sees it).
+
+  @param[in]  Key      The key (Pressed is TRUE).
+  @param[in]  Context  Value passed to UefiGuiSetKeyHandler().
+**/
+typedef
+BOOLEAN
+(EFIAPI *UEFI_GUI_KEY_HANDLER)(
+  IN CONST UEFI_GUI_KEY_EVENT  *Key,
+  IN VOID                      *Context
+  );
+
+/**
+  Install (or with NULL remove) the application key handler.
+**/
+VOID
+EFIAPI
+UefiGuiSetKeyHandler (
+  IN UEFI_GUI_KEY_HANDLER  Handler  OPTIONAL,
+  IN VOID                  *Context OPTIONAL
+  );
+
+/**
+  Map a key to the value the LVGL keypad input device reports.
+
+  @return  An LV_KEY_* value, the UTF-8 code of a printable character
+           (packed as LVGL expects), or 0 when the key has no LVGL meaning
+           (Ctrl/Alt combinations, Page Up/Down, function keys).
+**/
+UINT32
+EFIAPI
+UefiGuiKeyToLvgl (
+  IN CONST UEFI_GUI_KEY_EVENT  *Key
+  );
+
+/**
+  LVGL event code sent for a right click, registered by UefiGuiInitialize()
+  with lv_event_register_id(). 0 before initialization.
+**/
+UINT32
+EFIAPI
+UefiGuiGetRightClickEventCode (
+  VOID
+  );
+
+/**
+  Read the input statistics.
+
+  @retval EFI_SUCCESS            Stats filled.
+  @retval EFI_INVALID_PARAMETER  Stats is NULL.
+  @retval EFI_NOT_STARTED        Not initialized.
+**/
+EFI_STATUS
+EFIAPI
+UefiGuiGetInputStats (
+  OUT UEFI_GUI_INPUT_STATS  *Stats
   );
 
 #endif // UEFI_GUI_LIB_H_

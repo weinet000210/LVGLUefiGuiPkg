@@ -148,6 +148,27 @@ typedef struct {
 } UEFI_GUI_INPUT_EVENT;
 
 ///
+/// Event classes for UefiGuiInputDequeueKind(). Bit flags.
+///
+#define UEFI_GUI_INPUT_KIND_KEY      BIT0   ///< UEFI_GUI_INPUT_KEY
+#define UEFI_GUI_INPUT_KIND_POINTER  BIT1   ///< move, button and wheel events
+#define UEFI_GUI_INPUT_KIND_ALL      (UEFI_GUI_INPUT_KIND_KEY | UEFI_GUI_INPUT_KIND_POINTER)
+
+///
+/// Input statistics, reported by UefiGuiInputGetStats() / UefiGuiGetInputStats().
+///
+typedef struct {
+  UINT64    KeyPresses;        ///< Key presses read from the firmware.
+  UINT64    PointerReads;      ///< Pointer GetState() calls that returned data.
+  UINT64    QueuedEvents;      ///< Events added to the queue.
+  UINT64    CoalescedMoves;    ///< Moves merged into a queued move.
+  UINT64    DroppedEvents;     ///< Events lost because the queue was full.
+  UINT64    DeviceErrors;      ///< Protocol calls that returned an error.
+  UINT32    QueueDepth;        ///< Capacity of the queue.
+  UINT32    QueuePeak;         ///< Highest number of queued events seen.
+} UEFI_GUI_INPUT_STATS;
+
+///
 /// Rendering statistics, reported by UefiGuiGetRenderStats().
 ///
 typedef struct {

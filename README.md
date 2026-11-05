@@ -19,14 +19,18 @@ both supported toolchains and its tests pass in CI.
 | 0 | Package skeleton: DEC/DSC/INF, library class headers, memory backend, UefiGuiHello | Done (GCC build + QEMU smoke test, VS2022 build) |
 | 1 | GOP display backend (Blt path, all pixel formats, PixelBltOnly) + GopTest | Done (GCC + QEMU GopTest with screenshot, VS2022 build) |
 | 2 | LVGL v9.6.0 integration (partial rendering, flush lifecycle, time base, timer loop) + LvglPortTest | Done (GCC + QEMU LvglPortTest with screenshot, VS2022 build) |
-| 3 | Keyboard backend (Simple Text Input Ex) and LVGL keypad indev | Not started |
-| 4 | Pointer backend (Simple / Absolute Pointer) and LVGL pointer indev | Not started |
+| 3 | Keyboard backend (Simple Text Input Ex, Simple Text Input fallback), unified input queue, LVGL keypad indev | Done (GCC + QEMU InputTest driven through the QEMU monitor, VS2022 build) |
+| 4 | Pointer backend (Simple Pointer, Absolute Pointer), cursor, LVGL pointer indev | Done (GCC + QEMU InputTest with a USB mouse, Simple and Absolute Pointer paths, VS2022 build) |
 | 5 | Event loop and timers without busy polling; UefiGuiDemo | Not started |
 | 6 | Performance and stability measurements | Not started |
 
-Validation so far is in QEMU with OVMF only (GOP format BGR8). PixelBltOnly,
-RGB8 and PixelBitMask are covered with synthetic GOP instances in GopTest.
-Nothing has been validated on real hardware yet.
+Validation so far is in QEMU with OVMF only (GOP format BGR8, USB keyboard,
+USB boot-protocol mouse). PixelBltOnly, RGB8 and PixelBitMask are covered with
+synthetic GOP instances in GopTest; keyboard and pointer edge cases with
+scripted fake devices in InputTest. Nothing has been validated on real
+hardware yet.
+
+![InputTest screen in QEMU: keyboard and mouse through LVGL](Docs/Images/inputtest-1024x768.png)
 
 ![LvglPortTest screen in QEMU: LVGL 9.6.0 through GOP](Docs/Images/lvglporttest-1024x768.png)
 
@@ -59,12 +63,14 @@ LVGLUefiGuiPkg/
 │   ├── UefiGuiRuntimeLib/        Memory backend (Phase 0), TSC time base (Phase 2)
 │   ├── UefiGuiDisplayLib/        GOP display backend: Blt + optional frame buffer (Phase 1)
 │   ├── LvglLib/                  LVGL v9.6.0 submodule, lv_conf.h, freestanding shims (Phase 2)
-│   └── UefiGuiLib/               Public API, LVGL display port, event loop (Phase 2)
+│   ├── UefiGuiInputLib/          Keyboard and pointer backends, unified input queue (Phases 3-4)
+│   └── UefiGuiLib/               Public API, LVGL display/keypad/pointer port, event loop
 ├── Application/
 │   └── UefiGuiHello/             Phase 0 smoke test
 ├── Test/
 │   ├── GopTest/                  Phase 1 display test (unit checks + test screen)
-│   └── LvglPortTest/             Phase 2 LVGL port test (Button + Label, partial rendering)
+│   ├── LvglPortTest/             Phase 2 LVGL port test (Button + Label, partial rendering)
+│   └── InputTest/                Phases 3-4 input test (fake devices + real devices driven by the host)
 ├── scripts/                      build.sh, build.bat, run-qemu.sh, gen-lv-conf.py, gen-lvgl-inf.py
 └── Docs/                         Architecture.md, BuildGuide.md
 ```

@@ -10,6 +10,14 @@
 # --screenshot FILE --after TEXT (smoke mode only): once TEXT appears on the
 #   serial console, wait SHOT_DELAY seconds (default 2) and save the screen
 #   as PNG through the QEMU monitor.
+# --drive (smoke mode only): run scripts/qemu-driver.py, which executes the
+#   input commands the application requests on the serial console
+#   ("UEFIGUI-CMD <seq> <cmd>[;<cmd>...]", cmd = sendkey | mouse_move |
+#   mouse_button) through the QEMU monitor, like a person at the keyboard.
+#   With --screenshot FILE, the application's "screenshot" command saves it.
+# --load DRIVER.efi (repeatable): copy the driver to the ESP and load it from
+#   the shell (then "connect -r") before the application starts.
+# --pointer mouse|tablet|none: USB pointer device (default: tablet).
 #
 # Env: OVMF_CODE, OVMF_VARS (default: /usr/share/OVMF/OVMF_*_4M.fd),
 #      QEMU (default: qemu-system-x86_64), QEMU_TIMEOUT (smoke, default 120).
@@ -20,16 +28,22 @@ shift
 SMOKE=""
 SHOT=""
 SHOT_AFTER=""
+DRIVE=""
+LOADS=()
+POINTER="tablet"
 while [ $# -gt 0 ]; do
   case "$1" in
     --smoke) SMOKE="${2:?--smoke needs a marker}"; shift 2 ;;
     --screenshot) SHOT="${2:?--screenshot needs a file}"; shift 2 ;;
     --after) SHOT_AFTER="${2:?--after needs a text}"; shift 2 ;;
+    --drive) DRIVE=1; shift ;;
+    --load) LOADS+=("${2:?--load needs a driver}"); shift 2 ;;
+    --pointer) POINTER="${2:?--pointer needs mouse, tablet or none}"; shift 2 ;;
     *) break ;;
   esac
 done
-if [ -n "$SHOT" ] && { [ -z "$SMOKE" ] || [ -z "$SHOT_AFTER" ]; }; then
-  echo "--screenshot needs --smoke and --after" >&2
+if [ -n "$SHOT" ] && { [ -z "$SMOKE" ] || { [ -z "$SHOT_AFTER" ] && [ -z "$DRIVE" ]; }; }; then
+  echo "--screenshot needs --smoke and --after (or --drive)" >&2
   exit 2
 fi
 
@@ -42,6 +56,18 @@ trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/esp"
 cp "$APP" "$TMP/esp/"
 NAME="$(basename "$APP")"
+PRELOAD=""
+for DRV in ${LOADS[@]+"${LOADS[@]}"}; do
+  cp "$DRV" "$TMP/esp/"
+  PRELOAD+="load fs0:\\$(basename "$DRV")"$'\r\n'
+done
+[ -n "$PRELOAD" ] && PRELOAD+="connect -r"$'\r\n'
+case "$POINTER" in
+  mouse)  POINTER_DEV=(-device usb-mouse) ;;
+  tablet) POINTER_DEV=(-device usb-tablet) ;;
+  none)   POINTER_DEV=() ;;
+  *) echo "--pointer: mouse, tablet or none" >&2; exit 2 ;;
+esac
 cp "$OVMF_VARS" "$TMP/vars.fd"
 
 COMMON=(-machine q35 -m 512
@@ -49,22 +75,40 @@ COMMON=(-machine q35 -m 512
   -drive if=pflash,format=raw,file="$TMP/vars.fd"
   -drive file=fat:rw:"$TMP/esp",format=raw
   -device VGA,xres=1024,yres=768
-  -device qemu-xhci -device usb-kbd -device usb-tablet
+  -device qemu-xhci -device usb-kbd ${POINTER_DEV[@]+"${POINTER_DEV[@]}"}
   -net none)
 
 if [ -z "$SMOKE" ]; then
-  printf 'fs0:\r\n%s\r\n' "$NAME" > "$TMP/esp/startup.nsh"
+  printf 'fs0:\r\n%s%s\r\n' "$PRELOAD" "$NAME" > "$TMP/esp/startup.nsh"
   "$QEMU" "${COMMON[@]}" "$@"
   exit $?
 fi
 
-printf 'fs0:\r\n%s\r\nreset -s\r\n' "$NAME" > "$TMP/esp/startup.nsh"
+printf 'fs0:\r\n%s%s\r\nreset -s\r\n' "$PRELOAD" "$NAME" > "$TMP/esp/startup.nsh"
 : > "$TMP/serial.log"
 timeout "${QEMU_TIMEOUT:-120}" "$QEMU" "${COMMON[@]}" -display none -no-reboot \
   -serial file:"$TMP/serial.log" -monitor unix:"$TMP/monitor.sock",server,nowait "$@" &
 QEMU_PID=$!
+DRIVER_PID=""
+# Power off a few seconds after the verdict appears, in case the shell script
+# does not reach "reset -s" (for example after the app saw Ctrl+C, which the
+# UEFI Shell also takes as "abort the script").
+( for _ in $(seq 1 "${QEMU_TIMEOUT:-120}"); do
+    if grep -aq "$SMOKE: \(PASS\|FAIL\)" "$TMP/serial.log" 2>/dev/null; then
+      sleep 3; kill "$QEMU_PID" 2>/dev/null; break
+    fi
+    kill -0 "$QEMU_PID" 2>/dev/null || break
+    sleep 1
+  done ) &
+if [ -n "$DRIVE" ]; then
+  if [ -n "$SHOT" ]; then
+    export DRIVER_SHOT="$(cd "$(dirname "$SHOT")" && pwd)/$(basename "$SHOT")"
+  fi
+  python3 "$(dirname "$0")/qemu-driver.py" "$TMP/serial.log" "$TMP/monitor.sock" "$QEMU_PID" &
+  DRIVER_PID=$!
+fi
 
-if [ -n "$SHOT" ]; then
+if [ -n "$SHOT" ] && [ -z "$DRIVE" ]; then
   SHOT_ABS="$(cd "$(dirname "$SHOT")" && pwd)/$(basename "$SHOT")"
   for _ in $(seq 1 "${QEMU_TIMEOUT:-120}"); do
     grep -q "$SHOT_AFTER" "$TMP/serial.log" 2>/dev/null && break
@@ -91,6 +135,10 @@ PY
 fi
 
 wait "$QEMU_PID" || true
+[ -n "$DRIVER_PID" ] && wait "$DRIVER_PID" || true
+if [ -n "$DRIVE" ] && [ -n "$SHOT" ]; then
+  [ -s "$SHOT" ] && echo "screenshot saved: $SHOT" || echo "screenshot FAILED" >&2
+fi
 # Strip terminal escape sequences and carriage returns from the console log.
 sed 's/\x1b\[[0-9;]*[A-Za-z]//g' "$TMP/serial.log" | tr -d '\r' > "$TMP/console.txt"
 sed -n "/^FS0:\\\\> $NAME/,\$p" "$TMP/console.txt"

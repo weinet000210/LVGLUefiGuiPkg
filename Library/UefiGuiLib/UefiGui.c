@@ -168,6 +168,16 @@ UefiGuiInitialize (
     goto Fail;
   }
 
+  //
+  // A missing keyboard or mouse is not fatal (it is recorded as the last
+  // error); only a failure to set up the queue or LVGL objects is.
+  //
+  Status = UefiGuiLvglInputInitialize ();
+  if (EFI_ERROR (Status)) {
+    UefiGuiRecordError ("input", Status);
+    goto Fail;
+  }
+
   gUefiGui.Initialized = TRUE;
   return EFI_SUCCESS;
 
@@ -201,7 +211,7 @@ UefiGuiGetDisplayInfo (
 }
 
 /**
-  Input devices in use. The input backends are connected in Phases 3 and 4.
+  Input devices in use.
 **/
 UINT32
 EFIAPI
@@ -209,7 +219,7 @@ UefiGuiGetInputDevices (
   VOID
   )
 {
-  return 0;
+  return gUefiGui.InputInitialized ? UefiGuiInputGetDevices () : 0;
 }
 
 /**
@@ -277,6 +287,7 @@ UefiGuiShutdown (
     return;
   }
 
+  UefiGuiLvglInputShutdown ();
   UefiGuiLvglShutdown ();
   UefiGuiEventLoopShutdown ();
   UefiGuiDisplayShutdown ();

@@ -3,8 +3,10 @@
 
   Each iteration runs lv_timer_handler() in the caller's context
   (TPL_APPLICATION), then sleeps in WaitForEvent() until the next LVGL timer
-  is due, bounded by Timer.MinWaitMs and Timer.MaxWaitMs. No hardware is
-  polled in a busy loop. Input events join the wait list in Phases 3 and 4.
+  is due, bounded by Timer.MinWaitMs and Timer.MaxWaitMs, or until a
+  keyboard or pointer wait event is signaled. Input is read once per
+  iteration, after the wait, in the same context. No hardware is polled in
+  a busy loop.
 
   Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
   SPDX-License-Identifier: BSD-2-Clause-Patent
@@ -56,6 +58,8 @@ UefiGuiProcessEvents (
   UINT32      WaitMs;
   UINTN       Index;
   UINT64      Start;
+  EFI_EVENT   Events[1 + UEFI_GUI_INPUT_MAX_WAIT_EVENTS];
+  UINTN       InputCount;
 
   if (!gUefiGui.Initialized) {
     return EFI_NOT_STARTED;
@@ -65,6 +69,10 @@ UefiGuiProcessEvents (
     return EFI_ABORTED;
   }
 
+  //
+  // Read input first so LVGL handles it in this iteration.
+  //
+  UefiGuiLvglInputProcess ();
   NextMs = lv_timer_handler ();
   gUefiGui.Stats.LoopIterations++;
   if (gUefiGui.ExitRequested) {
@@ -83,8 +91,17 @@ UefiGuiProcessEvents (
     return Status;
   }
 
+  Events[0] = gUefiGui.WaitTimer;
+  InputCount = 0;
+  if (gUefiGui.InputInitialized) {
+    InputCount = UEFI_GUI_INPUT_MAX_WAIT_EVENTS;
+    if (EFI_ERROR (UefiGuiInputGetWaitEvents (&Events[1], &InputCount))) {
+      InputCount = 0;
+    }
+  }
+
   Start  = UefiGuiGetTimeUs ();
-  Status = gBS->WaitForEvent (1, &gUefiGui.WaitTimer, &Index);
+  Status = gBS->WaitForEvent (1 + InputCount, Events, &Index);
   gUefiGui.Stats.WaitTimeUs += UefiGuiGetTimeUs () - Start;
   if (EFI_ERROR (Status)) {
     UefiGuiRecordError ("WaitForEvent", Status);

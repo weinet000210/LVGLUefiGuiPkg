@@ -105,6 +105,7 @@ Add the library instances to your platform DSC:
 [LibraryClasses]
   UefiGuiRuntimeLib|LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
   UefiGuiDisplayLib|LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
+  UefiGuiInputLib|LVGLUefiGuiPkg/Library/UefiGuiInputLib/UefiGuiInputLib.inf
   UefiGuiLib|LVGLUefiGuiPkg/Library/UefiGuiLib/UefiGuiLib.inf
   LvglLib|LVGLUefiGuiPkg/Library/LvglLib/LvglLib.inf
   CompilerIntrinsicsLib|MdePkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
@@ -140,7 +141,18 @@ A minimal application:
   UefiGuiShutdown ();
 ```
 
-UefiGuiInputLib gets its instance in Phases 3 and 4.
+Widgets that take focus (buttons, text areas, ...) join LVGL's default group
+when they are created, so the keyboard works without extra code: Tab and
+Shift+Tab move the focus, Enter activates, Escape reaches the focused widget
+as `LV_KEY_ESC`. Shortcuts (Ctrl+S and the like) go to the handler set with
+`UefiGuiSetKeyHandler()`; a right click arrives as the event code returned by
+`UefiGuiGetRightClickEventCode()`.
+
+Under the UEFI Shell, the Shell itself also listens for Ctrl+C (abort the
+running script) and Ctrl+S (pause output). An application can use both keys,
+but after Ctrl+S the Shell's next output after the application exits waits for
+one key press, and after Ctrl+C a running `.nsh` script stops once the
+application returns.
 
 ## Running
 
@@ -159,6 +171,27 @@ LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64
   --smoke UEFIGUI-GOPTEST --screenshot goptest.png --after "GOPTEST: SCREEN READY"
 ```
 
+InputTest runs unit checks with fake devices, then asks the host for real
+key presses and mouse movement by printing `UEFIGUI-CMD <n> <commands>` on
+the serial port; `--drive` makes `scripts/qemu-driver.py` perform them
+through the QEMU monitor. OVMF has no USB mouse driver, so the MdeModulePkg
+drivers built with this package are loaded from the shell first:
+
+```sh
+# keyboard + Simple Pointer mouse
+LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/InputTest.efi \
+  --smoke UEFIGUI-INPUTTEST --drive --pointer mouse \
+  --load Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UsbMouseDxe.efi
+# keyboard + Absolute Pointer (UsbMouseAbsolutePointerDxe on the same mouse)
+#   --load .../UsbMouseAbsolutePointerDxe.efi
+# keyboard only
+#   --pointer none
+```
+
+For interactive use with a mouse, load `UsbMouseDxe.efi` from the shell
+(`load fs0:\UsbMouseDxe.efi`, then `connect -r`) before starting the
+application.
+
 LvglPortTest runs the LVGL port checks, shows its screen for 6 seconds and
 prints the results (`--smoke UEFIGUI-LVGLPORT`, screenshot marker
 `LVGLPORTTEST: SCREEN READY`).
@@ -173,9 +206,10 @@ new machine's GOP.
 
 `.github/workflows/build.yml` runs on every push and pull request:
 
-- `linux-gcc`: builds DEBUG and RELEASE with `GCC` and runs UefiGuiHello and
-  GopTest in QEMU/OVMF, failing unless each prints its `PASS` marker. The
-  GopTest screen is uploaded as the `screenshots` artifact.
+- `linux-gcc`: builds DEBUG and RELEASE with `GCC` and runs UefiGuiHello,
+  GopTest, LvglPortTest and InputTest (mouse, absolute pointer, keyboard
+  only) in QEMU/OVMF, failing unless each prints its `PASS` marker. Test
+  screens are uploaded as the `screenshots` artifact.
 - `windows-vs2022`: builds DEBUG and RELEASE with `VS2022`.
 
 Both jobs upload the `.efi` files as artifacts.

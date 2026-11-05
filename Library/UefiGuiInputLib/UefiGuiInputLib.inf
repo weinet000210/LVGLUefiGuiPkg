@@ -1,0 +1,43 @@
+## @file
+#  UefiGuiInputLib - Simple Text Input Ex / Simple Text Input keyboard,
+#  Simple Pointer and Absolute Pointer backends, unified event queue.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiGuiInputLib
+  FILE_GUID                      = 8B6E2F14-7D3A-4C59-B1E0-5A9C3D2F8E61
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.3
+  LIBRARY_CLASS                  = UefiGuiInputLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
+
+[Sources]
+  UefiGuiInputInternal.h
+  UefiGuiInput.c
+  UefiGuiInputQueue.c
+  UefiGuiKeyboard.c
+  UefiGuiPointer.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  UefiBootServicesTableLib
+  UefiGuiRuntimeLib
+
+[Protocols]
+  gEfiSimpleTextInProtocolGuid            ## SOMETIMES_CONSUMES
+  gEfiSimpleTextInputExProtocolGuid       ## SOMETIMES_CONSUMES
+  gEfiSimplePointerProtocolGuid           ## SOMETIMES_CONSUMES
+  gEfiAbsolutePointerProtocolGuid         ## SOMETIMES_CONSUMES
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -Wextra -Wno-unused-parameter

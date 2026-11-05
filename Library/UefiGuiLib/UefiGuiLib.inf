@@ -20,6 +20,7 @@
   UefiGui.c
   UefiGuiEventLoop.c
   UefiGuiLvglPort.c
+  UefiGuiLvglInput.c
 
 [Packages]
   MdePkg/MdePkg.dec
@@ -33,6 +34,7 @@
   UefiLib
   LvglLib
   UefiGuiDisplayLib
+  UefiGuiInputLib
   UefiGuiRuntimeLib
 
 [BuildOptions]
