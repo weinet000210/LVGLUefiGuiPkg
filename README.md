@@ -22,13 +22,19 @@ both supported toolchains and its tests pass in CI.
 | 3 | Keyboard backend (Simple Text Input Ex, Simple Text Input fallback), unified input queue, LVGL keypad indev | Done (GCC + QEMU InputTest driven through the QEMU monitor, VS2022 build) |
 | 4 | Pointer backend (Simple Pointer, Absolute Pointer), cursor, LVGL pointer indev | Done (GCC + QEMU InputTest with a USB mouse, Simple and Absolute Pointer paths, VS2022 build) |
 | 5 | Event loop and timers without busy polling (runtime block; UefiGuiDemo and UefiNotepad deferred) | Runtime done (GCC + QEMU RuntimeTest incl. host CPU check, VS2022 build) |
-| 6 | Performance and stability measurements | Not started |
+| 6 | Performance and stability measurements (PerfTest, Docs/Performance.md), XRGB8888 conversion fast path, Porting Guide | Done (GCC + QEMU PerfTest incl. soak, VS2022 build) |
 
 Validation so far is in QEMU with OVMF only (GOP format BGR8, USB keyboard,
 USB boot-protocol mouse). PixelBltOnly, RGB8 and PixelBitMask are covered with
 synthetic GOP instances in GopTest; keyboard and pointer edge cases with
 scripted fake devices in InputTest. Nothing has been validated on real
 hardware yet.
+
+Measured numbers (QEMU, so not representative of real hardware) are in
+[Docs/Performance.md](Docs/Performance.md); bringing the package to a new
+machine or application is described in [Docs/PortingGuide.md](Docs/PortingGuide.md).
+
+![PerfTest summary screen in QEMU](Docs/Images/perftest-1024x768.png)
 
 ![RuntimeTest screen in QEMU: typing while a timer and an animation run](Docs/Images/runtimetest-1024x768.png)
 
@@ -73,9 +79,10 @@ LVGLUefiGuiPkg/
 │   ├── GopTest/                  Phase 1 display test (unit checks + test screen)
 │   ├── LvglPortTest/             Phase 2 LVGL port test (Button + Label, partial rendering)
 │   ├── InputTest/                Phases 3-4 input test (fake devices + real devices driven by the host)
-│   └── RuntimeTest/              Phase 5 event loop test (idle, timers, wake sources, exit, cleanup)
-├── scripts/                      build.sh, build.bat, run-qemu.sh, gen-lv-conf.py, gen-lvgl-inf.py
-└── Docs/                         Architecture.md, BuildGuide.md
+│   ├── RuntimeTest/              Phase 5 event loop test (idle, timers, wake sources, exit, cleanup)
+│   └── PerfTest/                 Phase 6 measurements (Blt, updates, input latency, memory, resolutions, soak)
+├── scripts/                      build.sh, build.bat, run-qemu.sh, qemu-driver.py, perf-report.py, gen-lv-conf.py, gen-lvgl-inf.py
+└── Docs/                         Architecture.md, BuildGuide.md, Performance.md, PortingGuide.md
 ```
 
 ## Quick build

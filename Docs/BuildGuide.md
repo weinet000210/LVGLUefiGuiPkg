@@ -209,6 +209,25 @@ LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/R
   --load Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UsbMouseDxe.efi
 ```
 
+PerfTest (Phase 6) measures GOP Blt latency, both display backends,
+full-screen and partial LVGL updates for several draw buffer sizes, input
+latency, memory use, every listed resolution the GOP offers, and runs a soak
+test (`-soak N` seconds, default 60). It fails only on correctness checks;
+the measurements are printed as `UEFIGUI-PERF <key> <value> <unit>` lines,
+and `scripts/perf-report.py` turns a console log into the tables of
+[Performance.md](Performance.md):
+
+```sh
+LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/PerfTest.efi \
+  --smoke UEFIGUI-PERFTEST --drive --pointer mouse --args "-soak 300" \
+  --load Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/UsbMouseDxe.efi | tee perf.txt
+python3 LVGLUefiGuiPkg/scripts/perf-report.py perf.txt --label "my machine"
+```
+
+`--args "TEXT"` passes command line arguments to any application run by
+`run-qemu.sh`. On a real machine, run `PerfTest.efi -soak 600` from the
+Shell (see [PortingGuide.md](PortingGuide.md)).
+
 GopTest shows its test screen for 6 seconds (or until a key press), then
 prints the results. Run interactively, it is the quickest visual check of a
 new machine's GOP.
@@ -230,9 +249,12 @@ and `MSFT:*_*_*_CC_FLAGS = /DUEFI_GUI_PERF_MONITOR=1` in the DSC
 
 - `linux-gcc`: builds DEBUG and RELEASE with `GCC` and runs UefiGuiHello,
   GopTest, LvglPortTest, InputTest (mouse, absolute pointer, keyboard
-  only) and RuntimeTest (DEBUG and RELEASE, with the host CPU check) in
+  only), RuntimeTest (DEBUG and RELEASE, with the host CPU check) and
+  PerfTest (DEBUG with a 60 s soak, RELEASE with a 900 s soak) in
   QEMU/OVMF, failing unless each prints its `PASS` marker. Test
-  screens are uploaded as the `screenshots` artifact.
+  screens are uploaded as the `screenshots` artifact; PerfTest logs and
+  their Markdown tables as `perf-results`, and the tables also appear in
+  the job summary.
 - `windows-vs2022`: builds DEBUG and RELEASE with `VS2022`.
 
 Both jobs upload the `.efi` files as artifacts.

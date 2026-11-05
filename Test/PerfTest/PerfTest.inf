@@ -1,0 +1,50 @@
+## @file
+#  PerfTest - Phase 6 performance and stability measurements.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = PerfTest
+  FILE_GUID                      = 4F2C9A71-6B3D-4E8A-9C15-D27E80B4A6F3
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.6
+  ENTRY_POINT                    = PerfTestMain
+
+[Sources]
+  PerfTest.h
+  PerfTest.c
+  PerfGop.c
+  PerfLvgl.c
+  PerfInput.c
+  PerfSoak.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  PrintLib
+  LvglLib
+  UefiGuiLib
+  UefiGuiDisplayLib
+  UefiGuiInputLib
+  UefiGuiRuntimeLib
+
+[Protocols]
+  gEfiSerialIoProtocolGuid                ## CONSUMES
+  gEfiGraphicsOutputProtocolGuid          ## CONSUMES
+  gEfiLoadedImageProtocolGuid             ## CONSUMES
+
+[BuildOptions]
+  # -ffreestanding: LVGL headers include <stdint.h>; use the compiler's own.
+  GCC:*_*_*_CC_FLAGS = -ffreestanding -Wextra -Wno-unused-parameter

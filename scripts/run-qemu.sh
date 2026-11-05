@@ -22,6 +22,7 @@
 #   "cpu begin" / "cpu end idle" and "cpu end busy"; fail unless the QEMU
 #   process used at least N times more CPU in the busy period than in the
 #   idle one.
+# --args "TEXT": command line arguments passed to the application.
 #
 # Env: OVMF_CODE, OVMF_VARS (default: /usr/share/OVMF/OVMF_*_4M.fd),
 #      QEMU (default: qemu-system-x86_64), QEMU_TIMEOUT (smoke, default 120).
@@ -36,6 +37,7 @@ DRIVE=""
 LOADS=()
 POINTER="tablet"
 CPU_RATIO=""
+APP_ARGS=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --smoke) SMOKE="${2:?--smoke needs a marker}"; shift 2 ;;
@@ -45,6 +47,7 @@ while [ $# -gt 0 ]; do
     --load) LOADS+=("${2:?--load needs a driver}"); shift 2 ;;
     --pointer) POINTER="${2:?--pointer needs mouse, tablet or none}"; shift 2 ;;
     --cpu-ratio) CPU_RATIO="${2:?--cpu-ratio needs a number}"; shift 2 ;;
+    --args) APP_ARGS="${2?--args needs a value}"; shift 2 ;;
     *) break ;;
   esac
 done
@@ -85,12 +88,12 @@ COMMON=(-machine q35 -m 512
   -net none)
 
 if [ -z "$SMOKE" ]; then
-  printf 'fs0:\r\n%s%s\r\n' "$PRELOAD" "$NAME" > "$TMP/esp/startup.nsh"
+  printf 'fs0:\r\n%s%s\r\n' "$PRELOAD" "$NAME${APP_ARGS:+ $APP_ARGS}" > "$TMP/esp/startup.nsh"
   "$QEMU" "${COMMON[@]}" "$@"
   exit $?
 fi
 
-printf 'fs0:\r\n%s%s\r\nreset -s\r\n' "$PRELOAD" "$NAME" > "$TMP/esp/startup.nsh"
+printf 'fs0:\r\n%s%s\r\nreset -s\r\n' "$PRELOAD" "$NAME${APP_ARGS:+ $APP_ARGS}" > "$TMP/esp/startup.nsh"
 : > "$TMP/serial.log"
 timeout "${QEMU_TIMEOUT:-120}" "$QEMU" "${COMMON[@]}" -display none -no-reboot \
   -serial file:"$TMP/serial.log" -monitor unix:"$TMP/monitor.sock",server,nowait "$@" &
