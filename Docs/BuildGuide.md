@@ -6,7 +6,15 @@ tree is modified; the package is found through `PACKAGES_PATH`.
 Pinned versions:
 
 - EDK2: `edk2-stable202608`
-- LVGL: `v9.6.0` (git submodule, added in Phase 2)
+- LVGL: `v9.6.0` (git submodule at `Library/LvglLib/lvgl`)
+
+Clone with submodules:
+
+```sh
+git clone --recursive https://github.com/weinet000210/LVGLUefiGuiPkg.git
+# or, in an existing clone
+git submodule update --init
+```
 
 EDK2 resolves packages by directory name, so the repository must be checked
 out (or symlinked) as a directory named `LVGLUefiGuiPkg`.
@@ -97,6 +105,9 @@ Add the library instances to your platform DSC:
 [LibraryClasses]
   UefiGuiRuntimeLib|LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
   UefiGuiDisplayLib|LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
+  UefiGuiLib|LVGLUefiGuiPkg/Library/UefiGuiLib/UefiGuiLib.inf
+  LvglLib|LVGLUefiGuiPkg/Library/LvglLib/LvglLib.inf
+  CompilerIntrinsicsLib|MdePkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
   DxeServicesTableLib|MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf
 ```
 
@@ -108,12 +119,28 @@ and in the application INF:
   LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
 
 [LibraryClasses]
-  UefiGuiRuntimeLib
-  UefiGuiDisplayLib
+  UefiGuiLib
+  LvglLib
+
+[BuildOptions]
+  # LVGL headers include <stdint.h>; use the compiler's own, not libc's.
+  GCC:*_*_*_CC_FLAGS = -ffreestanding
 ```
 
-The remaining library classes get instances in later phases; this section
-will list them as they land.
+A minimal application:
+
+```c
+#include <Library/UefiGuiLib.h>
+#include <Library/LvglLib.h>
+
+  UefiGuiInitialize (NULL);                      // LVGL + display
+  lv_obj_t *Label = lv_label_create (lv_screen_active ());
+  lv_label_set_text (Label, "Hello");
+  UefiGuiRun ();                                 // until UefiGuiRequestExit()
+  UefiGuiShutdown ();
+```
+
+UefiGuiInputLib gets its instance in Phases 3 and 4.
 
 ## Running
 
@@ -131,6 +158,10 @@ LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/U
 LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/GopTest.efi \
   --smoke UEFIGUI-GOPTEST --screenshot goptest.png --after "GOPTEST: SCREEN READY"
 ```
+
+LvglPortTest runs the LVGL port checks, shows its screen for 6 seconds and
+prints the results (`--smoke UEFIGUI-LVGLPORT`, screenshot marker
+`LVGLPORTTEST: SCREEN READY`).
 
 GopTest shows its test screen for 6 seconds (or until a key press), then
 prints the results. Run interactively, it is the quickest visual check of a

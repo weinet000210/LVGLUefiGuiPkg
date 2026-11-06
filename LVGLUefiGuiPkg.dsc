@@ -45,6 +45,9 @@
   #
   UefiGuiRuntimeLib|LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
   UefiGuiDisplayLib|LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
+  UefiGuiLib|LVGLUefiGuiPkg/Library/UefiGuiLib/UefiGuiLib.inf
+  LvglLib|LVGLUefiGuiPkg/Library/LvglLib/LvglLib.inf
+  CompilerIntrinsicsLib|MdePkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
 
 [PcdsFixedAtBuild]
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x2F
@@ -53,5 +56,8 @@
 [Components]
   LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
   LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
+  LVGLUefiGuiPkg/Library/LvglLib/LvglLib.inf
+  LVGLUefiGuiPkg/Library/UefiGuiLib/UefiGuiLib.inf
   LVGLUefiGuiPkg/Application/UefiGuiHello/UefiGuiHello.inf
   LVGLUefiGuiPkg/Test/GopTest/GopTest.inf
+  LVGLUefiGuiPkg/Test/LvglPortTest/LvglPortTest.inf

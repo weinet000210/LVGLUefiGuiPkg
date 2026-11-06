@@ -148,6 +148,19 @@ typedef struct {
 } UEFI_GUI_INPUT_EVENT;
 
 ///
+/// Rendering statistics, reported by UefiGuiGetRenderStats().
+///
+typedef struct {
+  UINT64    FrameCount;        ///< Completed LVGL refreshes (last flush of a frame).
+  UINT64    FlushCount;        ///< Flush callbacks (one per rendered area or band).
+  UINT64    FlushedPixels;     ///< Pixels passed to the display backend.
+  UINT64    FlushErrors;       ///< Flushes whose backend call failed.
+  UINT64    FlushTimeUs;       ///< Time spent converting and copying pixels.
+  UINT64    LoopIterations;    ///< UefiGuiProcessEvents() iterations.
+  UINT64    WaitTimeUs;        ///< Time the loop spent waiting for events.
+} UEFI_GUI_RENDER_STATS;
+
+///
 /// Memory backend statistics, reported by UefiGuiGetMemoryStats().
 ///
 typedef struct {

@@ -1,0 +1,40 @@
+## @file
+#  UefiGuiLib - public framework API: LVGL initialization, display port,
+#  event loop, statistics and shutdown.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiGuiLib
+  FILE_GUID                      = 0E3C9B57-9C1E-4D3F-A0B5-3F2A8E7C6D14
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.2
+  LIBRARY_CLASS                  = UefiGuiLib|UEFI_APPLICATION
+
+[Sources]
+  UefiGuiInternal.h
+  UefiGui.c
+  UefiGuiEventLoop.c
+  UefiGuiLvglPort.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  UefiBootServicesTableLib
+  UefiLib
+  LvglLib
+  UefiGuiDisplayLib
+  UefiGuiRuntimeLib
+
+[BuildOptions]
+  # -ffreestanding: LVGL headers include <stdint.h>; use the compiler's own.
+  GCC:*_*_*_CC_FLAGS = -ffreestanding -Wextra -Wno-unused-parameter

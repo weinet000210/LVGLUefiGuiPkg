@@ -1,0 +1,38 @@
+## @file
+#  LvglPortTest - Phase 2 test: LVGL v9 through UefiGuiLib on GOP.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = LvglPortTest
+  FILE_GUID                      = C1D7A4E2-3B59-4F0A-8E61-2D9B5C8F7A03
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.2
+  ENTRY_POINT                    = LvglPortTestMain
+
+[Sources]
+  LvglPortTest.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  LvglLib
+  UefiGuiLib
+  UefiGuiDisplayLib
+  UefiGuiRuntimeLib
+
+[BuildOptions]
+  # -ffreestanding: LVGL headers include <stdint.h>; use the compiler's own.
+  GCC:*_*_*_CC_FLAGS = -ffreestanding -Wextra -Wno-unused-parameter

@@ -1,10 +1,21 @@
 /** @file
   UefiGuiLib - public API of the UefiGui framework.
 
-  INTERFACE (Phase 0). Implemented in Phase 2 (initialize, display info,
-  shutdown) and Phase 5 (event loop). These are the only UefiGui functions a
-  typical application calls; it never touches GOP, input protocols or the
-  LVGL display/indev setup directly.
+  These are the only UefiGui functions a typical application calls; it never
+  touches GOP, input protocols or the LVGL display/indev setup directly.
+
+  What initializes LVGL: UefiGuiInitialize() calls lv_init(), installs the
+  tick, log, memory and assert hooks, creates the LVGL display (partial
+  rendering, XRGB8888 draw buffers) and connects it to UefiGuiDisplayLib.
+  UefiGuiShutdown() deletes the display and calls lv_deinit().
+  What the application calls: everything else in this header, plus LVGL
+  widget APIs (lv_label_create(), lv_button_create(), ...) on the active
+  screen.
+
+  Status by phase: display, LVGL, time base and the timer-driven loop are
+  implemented (Phase 2). Keyboard and pointer input arrive in Phases 3 and 4;
+  until then UefiGuiGetInputDevices() reports no devices and the loop waits
+  on its timer only.
 
   Call order:
     UefiGuiConfigInitDefaults (&Config);   // application, optional overrides
@@ -90,6 +101,7 @@ UefiGuiGetDisplayInfo (
 
 /**
   Return UEFI_GUI_INPUT_DEVICE_* bits for the input devices in use.
+  Always 0 until the input backends (Phases 3 and 4) are connected.
 **/
 UINT32
 EFIAPI
@@ -126,6 +138,30 @@ VOID
 EFIAPI
 UefiGuiShutdown (
   VOID
+  );
+
+/**
+  Read the rendering statistics.
+
+  @retval EFI_SUCCESS            Stats filled.
+  @retval EFI_INVALID_PARAMETER  Stats is NULL.
+  @retval EFI_NOT_STARTED        Not initialized.
+**/
+EFI_STATUS
+EFIAPI
+UefiGuiGetRenderStats (
+  OUT UEFI_GUI_RENDER_STATS  *Stats
+  );
+
+/**
+  Debug and test aid: make the next Count flushes fail with
+  EFI_DEVICE_ERROR before they reach the display, to exercise the error path
+  (LVGL is still told the flush finished). 0 cancels.
+**/
+VOID
+EFIAPI
+UefiGuiDebugInjectFlushFailures (
+  IN UINT32  Count
   );
 
 #endif // UEFI_GUI_LIB_H_

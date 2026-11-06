@@ -16,6 +16,7 @@
 
 [Sources]
   UefiGuiMemory.c
+  UefiGuiTimer.c
   UefiGuiRuntimeInternal.h
 
 [Packages]
@@ -28,6 +29,7 @@
   DebugLib
   MemoryAllocationLib
   PcdLib
+  UefiBootServicesTableLib
 
 [FixedPcd]
   gUefiGuiPkgTokenSpaceGuid.PcdUefiGuiMemoryLimit

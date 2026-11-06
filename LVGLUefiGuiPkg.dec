@@ -18,11 +18,15 @@
 
 [Includes]
   Include
+  Library/LvglLib          # lv_conf.h, lv_uefi_gui_assert.h
+  Library/LvglLib/lvgl     # lvgl.h (git submodule, LVGL v9.6.0)
 
 [LibraryClasses]
+  ##  @libraryclass  LVGL v9 graphics library (submodule + lv_conf.h).
+  LvglLib|Include/Library/LvglLib.h
+
   ##  @libraryclass  Public framework API: initialization, event loop,
   #                  display information, exit and shutdown.
-  #                  (instance: Phase 2 / Phase 5)
   UefiGuiLib|Include/Library/UefiGuiLib.h
 
   ##  @libraryclass  GOP display backend: mode detection, pixel conversion,
