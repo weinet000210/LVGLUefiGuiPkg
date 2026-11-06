@@ -29,6 +29,7 @@ jobs:
         run: |
           git -C edk2 submodule update --init --depth 1 \
             BaseTools/Source/C/BrotliCompress/brotli \
+            MdeModulePkg/Library/BrotliCustomDecompressLib/brotli \
             MdePkg/Library/MipiSysTLib/mipisyst
 
       - name: Install toolchain
@@ -78,6 +79,39 @@ jobs:
             --screenshot screenshots/lvglporttest-1024x768.png --after "LVGLPORTTEST: SCREEN READY"
           test -s screenshots/lvglporttest-1024x768.png
 
+      #
+      # InputTest: the test asks for key presses and mouse moves on the
+      # serial port; qemu-driver.py performs them through the QEMU monitor.
+      # OVMF has no USB mouse driver, so the MdeModulePkg one built with the
+      # package is loaded from the shell first.
+      #
+      - name: InputTest (DEBUG) keyboard + Simple Pointer mouse
+        run: |
+          QEMU_TIMEOUT=300 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/InputTest.efi --smoke UEFIGUI-INPUTTEST \
+            --drive --pointer mouse --load Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UsbMouseDxe.efi
+
+      - name: InputTest (DEBUG) keyboard + Absolute Pointer
+        run: |
+          QEMU_TIMEOUT=300 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/InputTest.efi --smoke UEFIGUI-INPUTTEST \
+            --drive --pointer mouse --load Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UsbMouseAbsolutePointerDxe.efi
+
+      - name: InputTest (DEBUG) keyboard only, no pointer device
+        run: |
+          QEMU_TIMEOUT=300 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/InputTest.efi --smoke UEFIGUI-INPUTTEST \
+            --drive --pointer none
+
+      - name: InputTest (RELEASE) mouse, with screenshot
+        run: |
+          mkdir -p screenshots
+          QEMU_TIMEOUT=300 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/InputTest.efi --smoke UEFIGUI-INPUTTEST \
+            --drive --pointer mouse --load Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/UsbMouseDxe.efi \
+            --screenshot screenshots/inputtest-1024x768.png
+          test -s screenshots/inputtest-1024x768.png
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -113,6 +147,7 @@ jobs:
         run: |
           git -C edk2 submodule update --init --depth 1 \
             BaseTools/Source/C/BrotliCompress/brotli \
+            MdeModulePkg/Library/BrotliCustomDecompressLib/brotli \
             MdePkg/Library/MipiSysTLib/mipisyst
 
       - uses: actions/setup-python@v5

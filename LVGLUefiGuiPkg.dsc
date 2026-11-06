@@ -33,11 +33,24 @@
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
   DxeServicesTableLib|MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf
   DevicePathLib|MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
+  UefiDriverEntryPoint|MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf
+  ReportStatusCodeLib|MdePkg/Library/BaseReportStatusCodeLibNull/BaseReportStatusCodeLibNull.inf
+  UefiUsbLib|MdePkg/Library/UefiUsbLib/UefiUsbLib.inf
   DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
 !if $(TARGET) == RELEASE
   DebugLib|MdePkg/Library/BaseDebugLibNull/BaseDebugLibNull.inf
 !else
-  DebugLib|MdePkg/Library/UefiDebugLibConOut/UefiDebugLibConOut.inf
+  #
+  # DEBUG() goes straight to the COM1 UART, never to ConOut: a GUI owns the
+  # screen, and under the UEFI Shell a ConOut write blocks while the Shell's
+  # output is paused (Ctrl+S).
+  #
+  DebugLib|MdePkg/Library/BaseDebugLibSerialPort/BaseDebugLibSerialPort.inf
+  SerialPortLib|MdeModulePkg/Library/BaseSerialPortLib16550/BaseSerialPortLib16550.inf
+  PlatformHookLib|MdeModulePkg/Library/BasePlatformHookLibNull/BasePlatformHookLibNull.inf
+  IoLib|MdePkg/Library/BaseIoLibIntrinsic/BaseIoLibIntrinsic.inf
+  PciLib|MdePkg/Library/BasePciLibCf8/BasePciLibCf8.inf
+  PciCf8Lib|MdePkg/Library/BasePciCf8Lib/BasePciCf8Lib.inf
 !endif
 
   #
@@ -45,6 +58,7 @@
   #
   UefiGuiRuntimeLib|LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
   UefiGuiDisplayLib|LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
+  UefiGuiInputLib|LVGLUefiGuiPkg/Library/UefiGuiInputLib/UefiGuiInputLib.inf
   UefiGuiLib|LVGLUefiGuiPkg/Library/UefiGuiLib/UefiGuiLib.inf
   LvglLib|LVGLUefiGuiPkg/Library/LvglLib/LvglLib.inf
   CompilerIntrinsicsLib|MdePkg/Library/CompilerIntrinsicsLib/CompilerIntrinsicsLib.inf
@@ -57,7 +71,18 @@
   LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
   LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
   LVGLUefiGuiPkg/Library/LvglLib/LvglLib.inf
+  LVGLUefiGuiPkg/Library/UefiGuiInputLib/UefiGuiInputLib.inf
   LVGLUefiGuiPkg/Library/UefiGuiLib/UefiGuiLib.inf
   LVGLUefiGuiPkg/Application/UefiGuiHello/UefiGuiHello.inf
   LVGLUefiGuiPkg/Test/GopTest/GopTest.inf
   LVGLUefiGuiPkg/Test/LvglPortTest/LvglPortTest.inf
+  LVGLUefiGuiPkg/Test/InputTest/InputTest.inf
+
+  #
+  # USB mouse drivers that OVMF does not include. Built only so the QEMU
+  # tests can load them from the UEFI Shell (scripts/run-qemu.sh --load) to
+  # exercise the Simple Pointer and Absolute Pointer paths. Not part of the
+  # framework.
+  #
+  MdeModulePkg/Bus/Usb/UsbMouseDxe/UsbMouseDxe.inf
+  MdeModulePkg/Bus/Usb/UsbMouseAbsolutePointerDxe/UsbMouseAbsolutePointerDxe.inf

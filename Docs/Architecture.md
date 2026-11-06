@@ -160,6 +160,49 @@ does not select Linux code paths. LVGL sources are compiled unmodified with
 warnings non-fatal, but undeclared functions are errors and any missing C
 library symbol fails the link.
 
+## Input
+
+```text
+ firmware                      UefiGuiInputLib                 UefiGuiLib (LVGL)
+ Simple Text Input Ex  --+                                  +-> keypad indev -> default group
+ (Simple Text Input)     +-> poll in GUI context -> queue --+
+ Simple Pointer        --+   (no notify callbacks)          +-> pointer indev -> cursor, clicks
+ Absolute Pointer      --+                                       right click event, wheel scroll
+```
+
+- **Discovery.** Keyboard: Text Input Ex on `gST->ConsoleInHandle` (the
+  console splitter, so every keyboard), else `gST->ConIn` without modifier
+  information. Pointers: the console splitter's instance when at least one
+  physical device exists, else the first device; none when there is no
+  physical device (the splitter installs its pointer protocols even then).
+- **Loop.** `UefiGuiProcessEvents()` polls the devices, lets LVGL read the
+  new input at once (`lv_indev_read()`), runs `lv_timer_handler()`, then
+  sleeps in `WaitForEvent()` on the frame timer plus `WaitForKeyEx` and each
+  pointer's `WaitForInput`.
+- **Queue.** One ring buffer (`Input.EventQueueDepth`, default 64). A key
+  press is queued with a synthesized release, both or neither; consecutive
+  moves are merged; when full, the newest event is dropped and counted
+  (`UEFI_GUI_INPUT_STATS`). The keypad and pointer read callbacks take
+  their own kind of event in order (`UefiGuiInputDequeueKind()`) and use
+  `continue_reading`, so LVGL sees every press and release of a burst.
+- **Keys.** UEFI keys are never passed to LVGL directly:
+  `UefiGuiKeyToLvgl()` maps them (arrows, Enter, Esc, Tab/Shift+Tab,
+  Backspace, Delete, Home, End to `LV_KEY_*`; printable characters to UTF-8).
+  Ctrl/Alt combinations are normalized (Ctrl+A arrives as `'a'` +
+  `UEFI_GUI_KEY_MOD_CTRL` from both protocols) and go only to the
+  application key handler. Page Up/Down scroll the focused object by a page.
+  Firmware key repeat arrives as further presses.
+- **Pointer.** Relative counts are scaled by the device resolution
+  (`pixels = counts * 8 * Speed% / 100 / ResolutionX`, remainders carried),
+  absolute coordinates mapped from the device range, the cursor clamped to
+  the display. The arrow cursor is an ARGB image on LVGL's system layer.
+  Right click (press and release on one object) sends a registered LVGL
+  event; the wheel scrolls the scrollable object under the cursor by 40 px
+  per notch.
+- **Debug output** goes to the COM1 UART (`BaseDebugLibSerialPort`), never to
+  ConOut: the GUI owns the screen, and a ConOut write blocks while the UEFI
+  Shell's output is paused by Ctrl+S.
+
 ## Decisions
 
 | Decision | Reason |
@@ -167,4 +210,6 @@ library symbol fails the link.
 | LVGL v9.6.0 as a git submodule, `lv_conf.h` outside the tree | Upstream sources and license untouched; upgrades change only the submodule pointer. |
 | Blt backend is the default | Frame buffer access is not guaranteed (PixelBltOnly, memory attributes). |
 | Input read only in the GUI context | Keeps TPL rules simple; no locking. |
+| Key release synthesized with each press | UEFI reports presses only; LVGL needs both. |
+| QEMU tests drive real devices through the monitor | Exercises firmware drivers, console splitter and LVGL together, not just fakes. |
 | edk2-stable202608, `GCC` and `VS2022` tags | Latest stable at project start; `GCC5` no longer exists there. |

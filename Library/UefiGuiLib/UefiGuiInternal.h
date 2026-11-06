@@ -16,6 +16,7 @@
 #include <Library/UefiLib.h>
 #include <Library/LvglLib.h>
 #include <Library/UefiGuiDisplayLib.h>
+#include <Library/UefiGuiInputLib.h>
 #include <Library/UefiGuiLib.h>
 #include <Library/UefiGuiRuntimeLib.h>
 
@@ -24,6 +25,7 @@
 #define UEFI_GUI_DEFAULT_MIN_WAIT_MS  1
 #define UEFI_GUI_DEFAULT_MAX_WAIT_MS  50
 #define UEFI_GUI_MAX_WAIT_LIMIT_MS    1000
+#define UEFI_GUI_WHEEL_STEP_PX        40
 
 typedef struct {
   BOOLEAN                  Initialized;
@@ -37,6 +39,25 @@ typedef struct {
   EFI_STATUS               LastError;
   UEFI_GUI_RENDER_STATS    Stats;
   UINT32                   InjectedFlushFailures;
+
+  //
+  // Input (UefiGuiLvglInput.c).
+  //
+  BOOLEAN                  InputInitialized;
+  lv_group_t               *Group;
+  lv_indev_t               *Keypad;
+  lv_indev_t               *Pointer;
+  lv_obj_t                 *Cursor;
+  UEFI_GUI_KEY_HANDLER     KeyHandler;
+  VOID                     *KeyHandlerContext;
+  UINT32                   LastLvKey;
+  BOOLEAN                  SkipKeyRelease;
+  UINT64                   KeyPresses;
+  INT32                    PointerX;
+  INT32                    PointerY;
+  BOOLEAN                  PointerLeft;
+  lv_obj_t                 *RightPressObj;
+  UINT32                   RightClickEvent;
 } UEFI_GUI_CONTEXT;
 
 extern UEFI_GUI_CONTEXT  gUefiGui;
@@ -67,6 +88,25 @@ UefiGuiLvglInitialize (
 **/
 VOID
 UefiGuiLvglShutdown (
+  VOID
+  );
+
+//
+// UefiGuiLvglInput.c
+//
+
+EFI_STATUS
+UefiGuiLvglInputInitialize (
+  VOID
+  );
+
+VOID
+UefiGuiLvglInputProcess (
+  VOID
+  );
+
+VOID
+UefiGuiLvglInputShutdown (
   VOID
   );
 

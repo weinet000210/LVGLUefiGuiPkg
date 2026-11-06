@@ -1,0 +1,48 @@
+## @file
+#  InputTest - Phase 3 and 4 tests: keyboard and pointer backends, the
+#  unified input queue and the LVGL keypad / pointer input devices.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = InputTest
+  FILE_GUID                      = 5F2C8D41-9A63-4E7B-B05D-1C4E6A8F2B97
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.3
+  ENTRY_POINT                    = InputTestMain
+
+[Sources]
+  InputTest.h
+  InputTest.c
+  FakeDevices.c
+  UnitTests.c
+  GuiTests.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  PrintLib
+  LvglLib
+  UefiGuiLib
+  UefiGuiDisplayLib
+  UefiGuiInputLib
+  UefiGuiRuntimeLib
+
+[Protocols]
+  gEfiSerialIoProtocolGuid                ## CONSUMES
+
+[BuildOptions]
+  # -ffreestanding: LVGL headers include <stdint.h>; use the compiler's own.
+  GCC:*_*_*_CC_FLAGS = -ffreestanding -Wextra -Wno-unused-parameter
