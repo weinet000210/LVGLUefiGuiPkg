@@ -21,7 +21,7 @@ both supported toolchains and its tests pass in CI.
 | 2 | LVGL v9.6.0 integration (partial rendering, flush lifecycle, time base, timer loop) + LvglPortTest | Done (GCC + QEMU LvglPortTest with screenshot, VS2022 build) |
 | 3 | Keyboard backend (Simple Text Input Ex, Simple Text Input fallback), unified input queue, LVGL keypad indev | Done (GCC + QEMU InputTest driven through the QEMU monitor, VS2022 build) |
 | 4 | Pointer backend (Simple Pointer, Absolute Pointer), cursor, LVGL pointer indev | Done (GCC + QEMU InputTest with a USB mouse, Simple and Absolute Pointer paths, VS2022 build) |
-| 5 | Event loop and timers without busy polling; UefiGuiDemo | Not started |
+| 5 | Event loop and timers without busy polling (runtime block; UefiGuiDemo and UefiNotepad deferred) | Runtime done (GCC + QEMU RuntimeTest incl. host CPU check, VS2022 build) |
 | 6 | Performance and stability measurements | Not started |
 
 Validation so far is in QEMU with OVMF only (GOP format BGR8, USB keyboard,
@@ -29,6 +29,8 @@ USB boot-protocol mouse). PixelBltOnly, RGB8 and PixelBitMask are covered with
 synthetic GOP instances in GopTest; keyboard and pointer edge cases with
 scripted fake devices in InputTest. Nothing has been validated on real
 hardware yet.
+
+![RuntimeTest screen in QEMU: typing while a timer and an animation run](Docs/Images/runtimetest-1024x768.png)
 
 ![InputTest screen in QEMU: keyboard and mouse through LVGL](Docs/Images/inputtest-1024x768.png)
 
@@ -70,7 +72,8 @@ LVGLUefiGuiPkg/
 ├── Test/
 │   ├── GopTest/                  Phase 1 display test (unit checks + test screen)
 │   ├── LvglPortTest/             Phase 2 LVGL port test (Button + Label, partial rendering)
-│   └── InputTest/                Phases 3-4 input test (fake devices + real devices driven by the host)
+│   ├── InputTest/                Phases 3-4 input test (fake devices + real devices driven by the host)
+│   └── RuntimeTest/              Phase 5 event loop test (idle, timers, wake sources, exit, cleanup)
 ├── scripts/                      build.sh, build.bat, run-qemu.sh, gen-lv-conf.py, gen-lvgl-inf.py
 └── Docs/                         Architecture.md, BuildGuide.md
 ```

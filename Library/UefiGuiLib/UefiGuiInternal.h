@@ -23,19 +23,49 @@
 #define UEFI_GUI_DEFAULT_DRAW_LINES   64
 #define UEFI_GUI_MAX_DRAW_LINES       4096
 #define UEFI_GUI_DEFAULT_MIN_WAIT_MS  1
-#define UEFI_GUI_DEFAULT_MAX_WAIT_MS  50
+#define UEFI_GUI_DEFAULT_MAX_WAIT_MS  100
 #define UEFI_GUI_MAX_WAIT_LIMIT_MS    1000
 #define UEFI_GUI_WHEEL_STEP_PX        40
 
 typedef struct {
+  UEFI_GUI_CALLBACK    Callback;
+  VOID                 *Context;
+} UEFI_GUI_POSTED_CALLBACK;
+
+typedef struct {
+  EFI_EVENT                 Event;
+  UEFI_GUI_EVENT_HANDLER    Handler;
+  VOID                      *Context;
+  BOOLEAN                   Pending;
+} UEFI_GUI_APP_EVENT;
+
+typedef struct {
   BOOLEAN                  Initialized;
   BOOLEAN                  LvglInitialized;
-  BOOLEAN                  ExitRequested;
+  //
+  // Written at raised TPL by UefiGuiRequestExit().
+  //
+  volatile BOOLEAN         ExitRequested;
+  BOOLEAN                  InLoop;
   UEFI_GUI_CONFIG          Config;
   lv_display_t             *Display;
   VOID                     *DrawBuffer[2];
   UINT32                   DrawBufferSize;
+  //
+  // Event loop (UefiGuiEventLoop.c).
+  //
   EFI_EVENT                WaitTimer;
+  EFI_EVENT                ExitEvent;
+  EFI_EVENT                WakeEvent;
+  UEFI_GUI_LOOP_STATS      LoopStats;
+  //
+  // Posted callbacks: a ring guarded by raising to TPL_NOTIFY.
+  //
+  UEFI_GUI_POSTED_CALLBACK Posted[UEFI_GUI_MAX_POSTED_CALLBACKS];
+  volatile UINT32          PostedHead;
+  volatile UINT32          PostedCount;
+  UEFI_GUI_APP_EVENT       AppEvents[UEFI_GUI_MAX_APP_EVENTS];
+  UINT32                   AppEventCount;
   EFI_STATUS               LastError;
   UEFI_GUI_RENDER_STATS    Stats;
   UINT32                   InjectedFlushFailures;
@@ -121,6 +151,15 @@ UefiGuiEventLoopInitialize (
 
 VOID
 UefiGuiEventLoopShutdown (
+  VOID
+  );
+
+/**
+  Keep the loop statistics of the session that is ending, for
+  UefiGuiGetLoopStats() after UefiGuiShutdown().
+**/
+VOID
+UefiGuiEventLoopSaveStats (
   VOID
   );
 

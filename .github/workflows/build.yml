@@ -112,6 +112,27 @@ jobs:
             --screenshot screenshots/inputtest-1024x768.png
           test -s screenshots/inputtest-1024x768.png
 
+      # RuntimeTest: event loop, timers, wake sources, exit and cleanup.
+      # --cpu-ratio 3 fails the step unless the QEMU process used at least
+      # three times more host CPU during 3 s of deliberate busy polling than
+      # during 3 s of idle GUI.
+      - name: RuntimeTest (DEBUG) with host CPU check
+        run: |
+          QEMU_TIMEOUT=300 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/RuntimeTest.efi --smoke UEFIGUI-RUNTIMETEST \
+            --drive --pointer mouse --cpu-ratio 3 \
+            --load Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UsbMouseDxe.efi
+
+      - name: RuntimeTest (RELEASE) with host CPU check and screenshot
+        run: |
+          mkdir -p screenshots
+          QEMU_TIMEOUT=300 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/RuntimeTest.efi --smoke UEFIGUI-RUNTIMETEST \
+            --drive --pointer mouse --cpu-ratio 3 \
+            --load Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/UsbMouseDxe.efi \
+            --screenshot screenshots/runtimetest-1024x768.png
+          test -s screenshots/runtimetest-1024x768.png
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

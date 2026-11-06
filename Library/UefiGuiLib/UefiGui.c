@@ -282,15 +282,33 @@ UefiGuiShutdown (
   )
 {
   UEFI_GUI_MEMORY_STATS  Memory;
+  EFI_TPL                OldTpl;
 
   if (!gUefiGui.Initialized) {
     return;
   }
 
+  //
+  // LVGL cannot be torn down from inside one of its own callbacks.
+  //
+  if (gUefiGui.InLoop) {
+    UefiGuiRecordError ("UefiGuiShutdown called inside the event loop", EFI_ACCESS_DENIED);
+    return;
+  }
+
+  //
+  // From here on, UefiGuiRequestExit() and UefiGuiPostCallback() called by
+  // notification functions return EFI_NOT_STARTED.
+  //
+  OldTpl               = gBS->RaiseTPL (TPL_NOTIFY);
+  gUefiGui.Initialized = FALSE;
+  gBS->RestoreTPL (OldTpl);
+
   UefiGuiLvglInputShutdown ();
   UefiGuiLvglShutdown ();
   UefiGuiEventLoopShutdown ();
   UefiGuiDisplayShutdown ();
+  UefiGuiEventLoopSaveStats ();
 
   if (gUefiGui.Config.Debug.PrintStatsOnExit) {
     UefiGuiGetMemoryStats (&Memory);

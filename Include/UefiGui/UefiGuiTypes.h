@@ -182,6 +182,32 @@ typedef struct {
 } UEFI_GUI_RENDER_STATS;
 
 ///
+/// Event loop statistics, reported by UefiGuiGetLoopStats().
+///
+/// Every UefiGuiProcessEvents() call is one iteration. An iteration either
+/// sleeps in WaitForEvent() (and then counts exactly one wake reason) or
+/// skips the sleep because work is already pending (SkippedWaits).
+///
+typedef struct {
+  UINT64    Iterations;          ///< UefiGuiProcessEvents() calls that ran.
+  UINT64    SkippedWaits;        ///< Iterations that did not sleep (work pending).
+  UINT64    TimerWakes;          ///< Woken by the LVGL timer deadline (or MaxWaitMs).
+  UINT64    InputWakes;          ///< Woken by a keyboard or pointer wait event.
+  UINT64    ExitWakes;           ///< Woken by UefiGuiRequestExit().
+  UINT64    CallbackWakes;       ///< Woken by UefiGuiPostCallback().
+  UINT64    AppEventWakes;       ///< Woken by an event added with UefiGuiRegisterEvent().
+  UINT64    CallbacksRun;        ///< Posted callbacks executed.
+  UINT64    CallbacksRejected;   ///< UefiGuiPostCallback() calls refused (queue full).
+  UINT64    CallbacksDropped;    ///< Posted callbacks discarded at shutdown.
+  UINT64    AppEventsHandled;    ///< Registered event handlers executed.
+  UINT64    WaitTimeUs;          ///< Time spent inside WaitForEvent().
+  UINT64    BusyTimeUs;          ///< Time spent outside WaitForEvent() in the loop.
+  UINT64    LongestIterationUs;  ///< Longest busy part of one iteration.
+  UINT32    OpenEvents;          ///< UEFI events UefiGuiLib currently owns.
+  UINT32    RegisteredEvents;    ///< Application events currently registered.
+} UEFI_GUI_LOOP_STATS;
+
+///
 /// Memory backend statistics, reported by UefiGuiGetMemoryStats().
 ///
 typedef struct {

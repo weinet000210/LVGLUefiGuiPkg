@@ -196,19 +196,42 @@ LvglPortTest runs the LVGL port checks, shows its screen for 6 seconds and
 prints the results (`--smoke UEFIGUI-LVGLPORT`, screenshot marker
 `LVGLPORTTEST: SCREEN READY`).
 
+RuntimeTest checks the event loop (Phase 5): idle sleep, LVGL timer and
+animation timing, callbacks posted from a TPL_CALLBACK notification
+function, application events, exit requests, re-entry guards, keyboard
+wake-up, timers and typing together, and cleanup after five
+init / shutdown cycles. `--cpu-ratio 3` also compares the CPU time of the
+QEMU process during 3 s of idle GUI with 3 s of deliberate busy polling:
+
+```sh
+LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/RuntimeTest.efi \
+  --smoke UEFIGUI-RUNTIMETEST --drive --pointer mouse --cpu-ratio 3 \
+  --load Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UsbMouseDxe.efi
+```
+
 GopTest shows its test screen for 6 seconds (or until a key press), then
 prints the results. Run interactively, it is the quickest visual check of a
 new machine's GOP.
 
 `OVMF_CODE` and `OVMF_VARS` override the firmware paths.
 
+### LVGL performance monitor
+
+Off by default: with it compiled in, LVGL never pauses its display refresh
+timer and an idle screen redraws at frame rate. To measure, add
+`-DUEFI_GUI_PERF_MONITOR=1` to the compiler flags of every module that
+includes LVGL (for example `GCC:*_*_*_CC_FLAGS = -DUEFI_GUI_PERF_MONITOR=1`
+and `MSFT:*_*_*_CC_FLAGS = /DUEFI_GUI_PERF_MONITOR=1` in the DSC
+`[BuildOptions]`), then set `Debug.ShowPerformanceMonitor = TRUE`.
+
 ## Continuous integration
 
 `.github/workflows/build.yml` runs on every push and pull request:
 
 - `linux-gcc`: builds DEBUG and RELEASE with `GCC` and runs UefiGuiHello,
-  GopTest, LvglPortTest and InputTest (mouse, absolute pointer, keyboard
-  only) in QEMU/OVMF, failing unless each prints its `PASS` marker. Test
+  GopTest, LvglPortTest, InputTest (mouse, absolute pointer, keyboard
+  only) and RuntimeTest (DEBUG and RELEASE, with the host CPU check) in
+  QEMU/OVMF, failing unless each prints its `PASS` marker. Test
   screens are uploaded as the `screenshots` artifact.
 - `windows-vs2022`: builds DEBUG and RELEASE with `VS2022`.
 

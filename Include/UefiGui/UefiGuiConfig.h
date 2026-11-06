@@ -70,7 +70,12 @@ typedef struct {
 typedef struct {
   ///
   /// Shortest and longest time the event loop sleeps between LVGL timer
-  /// runs, in milliseconds. Defaults: 1 and 50.
+  /// runs, in milliseconds. Defaults: 1 and 100. Range: MinWaitMs >= 1,
+  /// MinWaitMs <= MaxWaitMs <= 1000. Every wake source (input, exit,
+  /// posted callbacks, application events) is an event, so MaxWaitMs only
+  /// bounds the sleep when nothing is due; it is a safety net for input
+  /// drivers whose wait event never fires. Waits are rounded up to the
+  /// platform timer tick by the firmware (10 ms on OVMF).
   ///
   UINT32    MinWaitMs;
   UINT32    MaxWaitMs;
