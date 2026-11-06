@@ -1,0 +1,43 @@
+## @file
+#  UefiGuiHello - Phase 0 smoke test for LVGLUefiGuiPkg.
+#
+#  Runs the memory backend self-test and reports which GOP and input
+#  protocols the firmware exposes. Standalone UEFI Shell application.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiGuiHello
+  FILE_GUID                      = EE2BFFB8-71CA-41A4-8920-C24BF5CED218
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  ENTRY_POINT                    = UefiGuiHelloMain
+
+[Sources]
+  UefiGuiHello.c
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  UefiApplicationEntryPoint
+  UefiBootServicesTableLib
+  UefiLib
+  BaseMemoryLib
+  DebugLib
+  UefiGuiRuntimeLib
+
+[Protocols]
+  gEfiGraphicsOutputProtocolGuid           ## SOMETIMES_CONSUMES
+  gEfiSimpleTextInputExProtocolGuid        ## SOMETIMES_CONSUMES
+  gEfiSimpleTextInProtocolGuid             ## SOMETIMES_CONSUMES
+  gEfiSimplePointerProtocolGuid            ## SOMETIMES_CONSUMES
+  gEfiAbsolutePointerProtocolGuid          ## SOMETIMES_CONSUMES
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -Wextra -Wno-unused-parameter

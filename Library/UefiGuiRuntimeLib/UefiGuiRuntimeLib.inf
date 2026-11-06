@@ -1,0 +1,36 @@
+## @file
+#  UefiGuiRuntimeLib - memory backend for UefiGui and LVGL.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = UefiGuiRuntimeLib
+  FILE_GUID                      = D084A984-A71D-4F5A-B662-A974192712EE
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 0.1
+  LIBRARY_CLASS                  = UefiGuiRuntimeLib|UEFI_APPLICATION UEFI_DRIVER DXE_DRIVER
+
+[Sources]
+  UefiGuiMemory.c
+  UefiGuiRuntimeInternal.h
+
+[Packages]
+  MdePkg/MdePkg.dec
+  LVGLUefiGuiPkg/LVGLUefiGuiPkg.dec
+
+[LibraryClasses]
+  BaseLib
+  BaseMemoryLib
+  DebugLib
+  MemoryAllocationLib
+  PcdLib
+
+[FixedPcd]
+  gUefiGuiPkgTokenSpaceGuid.PcdUefiGuiMemoryLimit
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -Wextra -Wno-unused-parameter

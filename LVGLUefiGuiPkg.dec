@@ -1,0 +1,46 @@
+## @file
+#  LVGLUefiGuiPkg - Reusable LVGL v9 GUI framework for EDK2 UEFI applications.
+#
+#  This package declares the UefiGui library classes. Applications link the
+#  libraries statically through their INF files; no DXE driver or custom
+#  protocol is produced.
+#
+#  Copyright (c) 2026, Niall Tseng. All rights reserved.<BR>
+#  SPDX-License-Identifier: BSD-2-Clause-Patent
+#
+##
+
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = LVGLUefiGuiPkg
+  PACKAGE_GUID                   = 45D259C2-044A-4832-8862-AA3E0558FE30
+  PACKAGE_VERSION                = 0.1
+
+[Includes]
+  Include
+
+[LibraryClasses]
+  ##  @libraryclass  Public framework API: initialization, event loop,
+  #                  display information, exit and shutdown.
+  #                  (instance: Phase 2 / Phase 5)
+  UefiGuiLib|Include/Library/UefiGuiLib.h
+
+  ##  @libraryclass  GOP display backend: mode detection, pixel conversion,
+  #                  rectangle Blt. (instance: Phase 1)
+  UefiGuiDisplayLib|Include/Library/UefiGuiDisplayLib.h
+
+  ##  @libraryclass  Keyboard and pointer backends feeding one unified input
+  #                  event queue. (instance: Phase 3 / Phase 4)
+  UefiGuiInputLib|Include/Library/UefiGuiInputLib.h
+
+  ##  @libraryclass  Memory allocation (Phase 0), timers and events (Phase 5).
+  UefiGuiRuntimeLib|Include/Library/UefiGuiRuntimeLib.h
+
+[Guids]
+  ## Token space for LVGLUefiGuiPkg PCDs.
+  gUefiGuiPkgTokenSpaceGuid = { 0x506B64A7, 0x63BF, 0x4F83, { 0xAB, 0xE3, 0x9E, 0x08, 0xAC, 0x1E, 0xD9, 0x34 } }
+
+[PcdsFixedAtBuild]
+  ## Default memory limit for UefiGuiAllocate() in bytes. 0 means no limit.
+  # @Prompt UefiGui pool limit.
+  gUefiGuiPkgTokenSpaceGuid.PcdUefiGuiMemoryLimit|0x0|UINT64|0x00000001
