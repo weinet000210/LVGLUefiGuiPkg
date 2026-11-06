@@ -142,12 +142,20 @@ Default (works with every GOP pixel format, including `PixelBltOnly`):
 LVGL partial draw buffer -> pixel conversion -> EFI_GRAPHICS_OUTPUT_BLT_PIXEL rows -> GOP Blt(BufferToVideo)
 ```
 
-The conversion is explicit even when the byte layouts happen to match, so no
-code depends on LVGL's internal color layout: every source pixel is decoded to
-0x00RRGGBB (XRGB8888 by memory byte order, RGB565 with bit replication) and
-stored field by field into `EFI_GRAPHICS_OUTPUT_BLT_PIXEL`. Rectangles larger
-than the conversion buffer (`DrawBufferLines` display lines) are sent in
-bands, one `Blt()` per band. A failed `Blt()` returns its status immediately.
+The conversion is explicit, so no code depends on LVGL's internal color
+layout. An XRGB8888 source (LVGL's format, memory order Blue, Green, Red,
+unused) is converted one 32-bit word per pixel with the unused byte cleared;
+this relies on the byte layout UEFI defines for
+`EFI_GRAPHICS_OUTPUT_BLT_PIXEL` (Blue, Green, Red, Reserved) on a
+little-endian CPU, which `STATIC_ASSERT`s in `UefiGuiGopBlt.c` check at
+compile time. RGB565 sources are decoded per pixel with bit replication.
+Rectangles larger than the conversion buffer (`DrawBufferLines` display
+lines) are sent in bands, one `Blt()` per band. A failed `Blt()` returns its
+status immediately.
+
+Phase 6 measured the conversion as the largest part of a flush and replaced
+the original per-pixel, per-field conversion with the word loop; see
+[Performance.md](Performance.md) for the numbers before and after.
 
 GOP selection: the GOP on `gST->ConsoleOutHandle` if it has one, otherwise
 the first GOP installed. Inside the UEFI Shell the console handle is the
@@ -172,7 +180,17 @@ Initialization returns `EFI_UNSUPPORTED` unless all checks pass:
    restored).
 
 PixelBitMask channels wider or narrower than 8 bits are scaled with rounding
-(for example 0x80 becomes 514 in a 10-bit channel).
+(for example 0x80 becomes 514 in a 10-bit channel). An XRGB8888 source on a
+32-bit frame buffer whose channels are whole bytes at the BGR8 or RGB8
+positions is written one word per pixel without the generic encoder.
+
+In QEMU the two backends are close: OVMF's `Blt()` is a memory copy inside the
+firmware. A full-screen XRGB8888 flush took 20.0 ms through the frame buffer
+against 17.6 ms through `Blt()` in a local run, and 5.37 ms against 5.60 ms on
+the CI runner (at most about 4% in favour of the frame buffer); with an RGB565
+source the frame buffer is about twice as slow. See
+[Performance.md](Performance.md). Whether direct access pays off on a given
+machine has to be measured there with PerfTest.
 
 ## Memory
 

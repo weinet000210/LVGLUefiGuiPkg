@@ -133,6 +133,49 @@ jobs:
             --screenshot screenshots/runtimetest-1024x768.png
           test -s screenshots/runtimetest-1024x768.png
 
+      # PerfTest (Phase 6): GOP Blt latency, full and partial updates,
+      # input latency, memory, resolutions and a soak run. Fails only on
+      # correctness checks; the measurements go to the job summary and the
+      # perf-results artifact. QEMU uses TCG here, so absolute times describe
+      # this virtual machine, not real hardware.
+      - name: PerfTest (DEBUG), 60 s soak
+        run: |
+          mkdir -p perf
+          set -o pipefail
+          QEMU_TIMEOUT=1500 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/PerfTest.efi --smoke UEFIGUI-PERFTEST \
+            --drive --pointer mouse --args "-soak 60" \
+            --load Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UsbMouseDxe.efi | tee perf/perftest-debug.txt
+
+      - name: PerfTest (RELEASE), 900 s soak, with screenshot
+        run: |
+          mkdir -p perf screenshots
+          set -o pipefail
+          QEMU_TIMEOUT=2400 LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/PerfTest.efi --smoke UEFIGUI-PERFTEST \
+            --drive --pointer mouse --args "-soak 900" \
+            --load Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/UsbMouseDxe.efi \
+            --screenshot screenshots/perftest-1024x768.png | tee perf/perftest-release.txt
+          test -s screenshots/perftest-1024x768.png
+
+      - name: PerfTest report
+        if: always()
+        run: |
+          for b in release debug; do
+            if [ -s perf/perftest-$b.txt ]; then
+              python3 LVGLUefiGuiPkg/scripts/perf-report.py perf/perftest-$b.txt \
+                --label "GitHub-hosted ubuntu runner, QEMU TCG + OVMF, ${b^^} build" > perf/perftest-$b.md || true
+              { echo "## PerfTest ${b^^}"; cat perf/perftest-$b.md; } >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: perf-results
+          path: perf/
+          if-no-files-found: ignore
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -203,13 +203,52 @@ UefiGuiFrameBufferFlush (
   UINTN        Row;
   UINTN        Column;
   UINT8        *Out;
-  CONST UINT8  *SourceRow;
-  UINT32       BytesPerPixel;
+  CONST UINT8                  *SourceRow;
+  UINT32                       BytesPerPixel;
+  CONST UEFI_GUI_PIXEL_LAYOUT  *Layout;
+  BOOLEAN                      Bgr;
+  BOOLEAN                      Rgb;
+  volatile UINT32              *Out32;
+  CONST UINT32                 *Source32;
+  BOOLEAN                      Aligned;
+  UINT32                       Word;
 
   BytesPerPixel = gUefiGuiDisplay.Layout.BytesPerPixel;
+  Layout        = &gUefiGuiDisplay.Layout;
+  //
+  // Fast paths for an XRGB8888 source on 32-bit frame buffers whose
+  // channels are whole bytes (PixelBlueGreenRedReserved8BitPerColor, or
+  // PixelRedGreenBlueReserved8BitPerColor / a matching PixelBitMask). The
+  // layout comes from the GOP mode; nothing is assumed about the device.
+  //
+  Bgr = (BOOLEAN)((Format == UefiGuiSourceFormatXrgb8888) && (BytesPerPixel == 4) &&
+                  (Layout->Red.Shift == 16) && (Layout->Red.Width == 8) &&
+                  (Layout->Green.Shift == 8) && (Layout->Green.Width == 8) &&
+                  (Layout->Blue.Shift == 0) && (Layout->Blue.Width == 8));
+  Rgb = (BOOLEAN)((Format == UefiGuiSourceFormatXrgb8888) && (BytesPerPixel == 4) &&
+                  (Layout->Red.Shift == 0) && (Layout->Red.Width == 8) &&
+                  (Layout->Green.Shift == 8) && (Layout->Green.Width == 8) &&
+                  (Layout->Blue.Shift == 16) && (Layout->Blue.Width == 8));
   for (Row = 0; Row < Height; Row++) {
     SourceRow = Source + Row * SourceStrideBytes;
     Out       = UefiGuiFbPixelAddress (DestX, DestY + Row);
+    if (Bgr || Rgb) {
+      Out32    = (volatile UINT32 *)Out;
+      Source32 = (CONST UINT32 *)SourceRow;
+      Aligned  = (BOOLEAN)(((UINTN)SourceRow & 3) == 0);
+      for (Column = 0; Column < Width; Column++) {
+        Word = Aligned ? Source32[Column] : ReadUnaligned32 (Source32 + Column);
+        Word &= 0x00FFFFFF;
+        if (Rgb) {
+          Word = ((Word & 0xFF) << 16) | (Word & 0xFF00) | ((Word >> 16) & 0xFF);
+        }
+
+        Out32[Column] = Word;
+      }
+
+      continue;
+    }
+
     for (Column = 0; Column < Width; Column++) {
       UefiGuiFbWrite (
         Out,
