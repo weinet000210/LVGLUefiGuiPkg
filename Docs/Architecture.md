@@ -35,7 +35,7 @@ Rules:
 | Class | Header | Instance | Phase |
 |---|---|---|---|
 | UefiGuiRuntimeLib | `Library/UefiGuiRuntimeLib.h` | `Library/UefiGuiRuntimeLib` | memory: 0, timers: 5 |
-| UefiGuiDisplayLib | `Library/UefiGuiDisplayLib.h` | - | 1 |
+| UefiGuiDisplayLib | `Library/UefiGuiDisplayLib.h` | `Library/UefiGuiDisplayLib` | 1 |
 | LvglLib | (LVGL headers) | - | 2 |
 | UefiGuiLib | `Library/UefiGuiLib.h` | - | 2, 5 |
 | UefiGuiInputLib | `Library/UefiGuiInputLib.h` | - | 3, 4 |
@@ -63,8 +63,36 @@ LVGL partial draw buffer -> pixel conversion -> EFI_GRAPHICS_OUTPUT_BLT_PIXEL ro
 ```
 
 The conversion is explicit even when the byte layouts happen to match, so no
-code depends on LVGL's internal color layout. A direct frame buffer backend is
-optional, separate, and used only after the frame buffer is validated.
+code depends on LVGL's internal color layout: every source pixel is decoded to
+0x00RRGGBB (XRGB8888 by memory byte order, RGB565 with bit replication) and
+stored field by field into `EFI_GRAPHICS_OUTPUT_BLT_PIXEL`. Rectangles larger
+than the conversion buffer (`DrawBufferLines` display lines) are sent in
+bands, one `Blt()` per band. A failed `Blt()` returns its status immediately.
+
+GOP selection: the GOP on `gST->ConsoleOutHandle` if it has one, otherwise
+the first GOP installed. Inside the UEFI Shell the console handle is the
+Shell's own and carries no GOP, so the first GOP is used.
+
+Mode selection: with `PreferredWidth/Height` set, the largest mode that fits is
+chosen; the original mode is restored by `UefiGuiDisplayShutdown()`. If no
+mode fits, the current mode is kept.
+
+### Frame buffer backend (optional)
+
+Selected only with `UefiGuiDisplayBackendFrameBuffer`; `Auto` never picks it.
+Initialization returns `EFI_UNSUPPORTED` unless all checks pass:
+
+1. Pixel format is RGB8, BGR8 or PixelBitMask with contiguous,
+   non-overlapping masks (16-bit or 32-bit pixels). PixelBltOnly is refused.
+2. `FrameBufferBase != 0` and `PixelsPerScanLine >= HorizontalResolution`.
+3. `FrameBufferSize >= PixelsPerScanLine * BytesPerPixel * VerticalResolution`.
+4. The GCD memory space map covers the whole range with present memory that
+   has neither `EFI_MEMORY_RO` nor `EFI_MEMORY_RP`.
+5. A write/read-back probe on the first pixel succeeds (the pixel is
+   restored).
+
+PixelBitMask channels wider or narrower than 8 bits are scaled with rounding
+(for example 0x80 becomes 514 in a 10-bit channel).
 
 ## Memory
 

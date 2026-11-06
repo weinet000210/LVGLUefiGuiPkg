@@ -31,6 +31,7 @@
   MemoryAllocationLib|MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf
   PrintLib|MdePkg/Library/BasePrintLib/BasePrintLib.inf
   PcdLib|MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf
+  DxeServicesTableLib|MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf
   DevicePathLib|MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf
   DebugPrintErrorLevelLib|MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf
 !if $(TARGET) == RELEASE
@@ -43,6 +44,7 @@
   # LVGLUefiGuiPkg library instances
   #
   UefiGuiRuntimeLib|LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
+  UefiGuiDisplayLib|LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
 
 [PcdsFixedAtBuild]
   gEfiMdePkgTokenSpaceGuid.PcdDebugPropertyMask|0x2F
@@ -50,4 +52,6 @@
 
 [Components]
   LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
+  LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
   LVGLUefiGuiPkg/Application/UefiGuiHello/UefiGuiHello.inf
+  LVGLUefiGuiPkg/Test/GopTest/GopTest.inf

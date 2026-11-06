@@ -10,7 +10,7 @@ env:
 
 jobs:
   linux-gcc:
-    name: Linux / GCC (build + QEMU smoke test)
+    name: Linux / GCC (build + QEMU tests)
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +51,26 @@ jobs:
         run: |
           LVGLUefiGuiPkg/scripts/run-qemu.sh \
             Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/UefiGuiHello.efi --smoke UEFIGUI-HELLO
+
+      - name: GopTest (DEBUG)
+        run: |
+          LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/GopTest.efi --smoke UEFIGUI-GOPTEST
+
+      - name: GopTest (RELEASE) with screenshot
+        run: |
+          mkdir -p screenshots
+          LVGLUefiGuiPkg/scripts/run-qemu.sh \
+            Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/GopTest.efi --smoke UEFIGUI-GOPTEST \
+            --screenshot screenshots/goptest-1024x768.png --after "GOPTEST: SCREEN READY"
+          test -s screenshots/goptest-1024x768.png
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: screenshots/
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v4
         with:

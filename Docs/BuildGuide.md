@@ -96,6 +96,8 @@ Add the library instances to your platform DSC:
 ```ini
 [LibraryClasses]
   UefiGuiRuntimeLib|LVGLUefiGuiPkg/Library/UefiGuiRuntimeLib/UefiGuiRuntimeLib.inf
+  UefiGuiDisplayLib|LVGLUefiGuiPkg/Library/UefiGuiDisplayLib/UefiGuiDisplayLib.inf
+  DxeServicesTableLib|MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf
 ```
 
 and in the application INF:
@@ -107,6 +109,7 @@ and in the application INF:
 
 [LibraryClasses]
   UefiGuiRuntimeLib
+  UefiGuiDisplayLib
 ```
 
 The remaining library classes get instances in later phases; this section
@@ -124,7 +127,14 @@ In QEMU:
 LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UefiGuiHello.efi
 # headless pass/fail check, as CI runs it
 LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/UefiGuiHello.efi --smoke UEFIGUI-HELLO
+# GopTest with a screenshot of its test screen
+LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/RELEASE_GCC/X64/GopTest.efi \
+  --smoke UEFIGUI-GOPTEST --screenshot goptest.png --after "GOPTEST: SCREEN READY"
 ```
+
+GopTest shows its test screen for 6 seconds (or until a key press), then
+prints the results. Run interactively, it is the quickest visual check of a
+new machine's GOP.
 
 `OVMF_CODE` and `OVMF_VARS` override the firmware paths.
 
@@ -132,8 +142,9 @@ LVGLUefiGuiPkg/scripts/run-qemu.sh Build-ws/Build/LVGLUefiGuiPkg/DEBUG_GCC/X64/U
 
 `.github/workflows/build.yml` runs on every push and pull request:
 
-- `linux-gcc`: builds DEBUG and RELEASE with `GCC` and runs both builds of
-  UefiGuiHello in QEMU/OVMF, failing unless `UEFIGUI-HELLO: PASS` appears.
+- `linux-gcc`: builds DEBUG and RELEASE with `GCC` and runs UefiGuiHello and
+  GopTest in QEMU/OVMF, failing unless each prints its `PASS` marker. The
+  GopTest screen is uploaded as the `screenshots` artifact.
 - `windows-vs2022`: builds DEBUG and RELEASE with `VS2022`.
 
 Both jobs upload the `.efi` files as artifacts.

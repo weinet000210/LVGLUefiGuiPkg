@@ -17,15 +17,18 @@ both supported toolchains and its tests pass in CI.
 | Phase | Content | Status |
 |---|---|---|
 | 0 | Package skeleton: DEC/DSC/INF, library class headers, memory backend, UefiGuiHello | Done (GCC build + QEMU smoke test, VS2022 build) |
-| 1 | GOP display backend (Blt path, all pixel formats, PixelBltOnly) | Not started |
+| 1 | GOP display backend (Blt path, all pixel formats, PixelBltOnly) + GopTest | Done (GCC + QEMU GopTest with screenshot, VS2022 build) |
 | 2 | LVGL v9.6.0 integration (partial rendering, flush lifecycle) | Not started |
 | 3 | Keyboard backend (Simple Text Input Ex) and LVGL keypad indev | Not started |
 | 4 | Pointer backend (Simple / Absolute Pointer) and LVGL pointer indev | Not started |
 | 5 | Event loop and timers without busy polling; UefiGuiDemo | Not started |
 | 6 | Performance and stability measurements | Not started |
 
-Validation so far is in QEMU with OVMF only. Nothing has been validated on
-real hardware yet.
+Validation so far is in QEMU with OVMF only (GOP format BGR8). PixelBltOnly,
+RGB8 and PixelBitMask are covered with synthetic GOP instances in GopTest.
+Nothing has been validated on real hardware yet.
+
+![GopTest screen in QEMU](Docs/Images/goptest-1024x768.png)
 
 ## Supported environment
 
@@ -50,9 +53,12 @@ LVGLUefiGuiPkg/
 │   │   └── UefiGuiRuntimeLib.h   Memory (and, from Phase 5, timers)
 │   └── UefiGui/                  Shared types, configuration, error helpers
 ├── Library/
-│   └── UefiGuiRuntimeLib/        Memory backend (Phase 0)
+│   ├── UefiGuiRuntimeLib/        Memory backend (Phase 0)
+│   └── UefiGuiDisplayLib/        GOP display backend: Blt + optional frame buffer (Phase 1)
 ├── Application/
 │   └── UefiGuiHello/             Phase 0 smoke test
+├── Test/
+│   └── GopTest/                  Phase 1 display test (unit checks + test screen)
 ├── scripts/                      build.sh, build.bat, run-qemu.sh
 └── Docs/                         Architecture.md, BuildGuide.md
 ```
